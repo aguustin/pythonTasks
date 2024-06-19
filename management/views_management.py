@@ -2,7 +2,9 @@ import json
 from django.http import HttpResponse, JsonResponse
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.shortcuts import render
+from requests import Response
 from management.models import Tasks, TasksTable
+from tasksManager.serializer import Tasks_Tables_Serializer
 from user.models import User
 
 # Create your views here.
@@ -12,6 +14,17 @@ class get_Taks_Tables(ListView):
     def get(self, request):
         get_Taks_Tables = TasksTable.objects.all().values()
         return JsonResponse(list(get_Taks_Tables), safe=False)
+    
+class get_One_Table(ListView):
+    model = TasksTable
+
+    def get(self, request, *args, **kwargs):
+        table_id = kwargs['tableId']
+        get_table = TasksTable.objects.get(id=table_id)
+        serializer = Tasks_Tables_Serializer(get_table)
+
+        return JsonResponse(serializer.data)
+
 
 class Create_Tasks_Tables(CreateView):
     model = User
@@ -55,7 +68,25 @@ class Delete_Tasks_Tables(DeleteView):
 
         return HttpResponse(200)
     
+    
+class Get_Tasks(ListView):
+    model = Tasks
 
+    def get(self, request, *args, **kwargs):
+        table_id = kwargs['tableId']
+        get_all_tasks = Tasks.objects.filter(table_code=table_id).values()
+
+        return JsonResponse(list(get_all_tasks), safe=False)
+
+
+class Get_One_Task(ListView):
+    model = Tasks
+
+    def get(self, request, *args, **kwargs):
+        task_id = kwargs['taskId']
+        get_task = Tasks.objects.filter(id=task_id).values()
+       
+        return JsonResponse(list(get_task), safe=False)
 
 
 class Create_Tasks(CreateView):

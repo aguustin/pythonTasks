@@ -29,9 +29,12 @@ urlpatterns = [
 
 
     path('get_tasks_tables/', views_management.get_Taks_Tables.as_view(), name="get_tasks_tables"),
+    path('get_one_table/<int:tableId>', views_management.get_One_Table.as_view(), name="get_table"),
     path('create_tasks_tables/', csrf_exempt(views_management.Create_Tasks_Tables.as_view()), name="create_tasks_tables"),
     path('update_tasks_table/', csrf_exempt(views_management.Update_Tasks_Table.as_view()), name="update_tasks_table"),
     path('delete_tasks_table/<int:taskTableId>', csrf_exempt(views_management.Delete_Tasks_Tables.as_view()), name="delete_tasks_table"),
+    path('get_tasks/<int:tableId>', views_management.Get_Tasks.as_view(), name="get_tasks"),
+    path('get_one_task/<int:taskId>', views_management.Get_One_Task.as_view(), name="get one task"),
     path('create_task/', csrf_exempt(views_management.Create_Tasks.as_view()), name="create_task"),
     path('update_tasks/', csrf_exempt(views_management.Update_Tasks.as_view()), name="update_task"),
     path('delete_tasks/<int:taskId>', csrf_exempt(views_management.Delete_Tasks.as_view()), name="delete_task")
