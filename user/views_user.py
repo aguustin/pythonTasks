@@ -33,22 +33,22 @@ class Create_User(CreateView):
 
         data = json.loads(request.body)
         mail = data.get('mail')
+        username = data.get('username')
         password = data.get('password') 
-        confirm_password = data.get('confirm_password')
-
+        confirm_password = data.get('confirmPassword')
         check_if_exists = User.objects.filter(mail=mail)
+
+        print(password, ' ', confirm_password)
 
         if check_if_exists:
             return HttpResponse(200)
         elif password != confirm_password:
             return HttpResponse(200)
         else:
-            print('entra aca')
             encoded_pass = bytes(password, 'UTF-8')
             salt = bcrypt.gensalt()
             hashed_pass = bcrypt.hashpw(encoded_pass, salt)
-
-            save_user = User.objects.create(mail=mail, password=hashed_pass)
+            save_user = User.objects.create(mail=mail, username=username, password=hashed_pass)
             save_user.save()
 
             return HttpResponse(200)
@@ -65,16 +65,17 @@ class Get_Credentials(ListView):
         get_password = kwargs['password']
         get_user = list(User.objects.filter(mail=user_mail).values())
         user_data = get_user[0]
-        get_pass = user_data['password'] #encoded_pass = bytes(password, 'UTF-8')
-    
+        print(user_data)
+        get_pass = user_data['password']
+        #encoded_pass = bytes(password, 'UTF-8')
         #check_pass = check_password(get_password, get_pass) no funciona bien
         
         #if check_pass:
         
-        get_user_table_instance = TasksTable.objects.filter(user_code=1)
+        get_user_table_instance = TasksTable.objects.filter(user_code=user_data['id'])
         serializer = Tasks_Tables_Serializer(get_user_table_instance, many=True)
         print(serializer.data)
-        return JsonResponse(user_data + serializer.data, safe=False)
+        return JsonResponse(get_user + serializer.data, safe=False)
         #else:
          #   return HttpResponse(400)
     

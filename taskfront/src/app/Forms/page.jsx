@@ -1,58 +1,81 @@
-import { useRouter } from "next/router"
+"use client"
+import { useRouter } from "next/navigation"
 import { getInRequest, signInRequest } from "../../../api/userRequests"
-
+import '../Forms/forms.css'
+import { useState } from "react"
 
 function Form(){
 
     const router = useRouter
+    const [switchForm, setSwitchForm] = useState(false)
 
     const signIn = async (e) => {
         e.preventDefault()
 
         const data = {
-            username: e.elements.target.username.value,
-            mail: e.elements.target.mail.value,
-            password: e.elements.target.password.value,
-            confirmPassword: e.elements.target.confirmPassword.value
+            username: e.target.elements.username.value,
+            mail: e.target.elements.mail.value,
+            password: e.target.elements.password.value,
+            confirmPassword: e.target.elements.confirmPassword.value
         }
 
         await signInRequest(data)
 
     }
 
-    const getIn = async (e) => {
+    const logIn = async (e) => {
         e.preventDefault()
 
-        const data = {
-            mail: e.elements.target.mail.value,
-            password: e.elements.target.password.value
-        }
+        
+        const mail = e.target.elements.mail.value
+        const password = e.target.elements.password.value
+        
 
-        const res = await getInRequest(data)
+        const res = await getInRequest(mail, password)
+
+        if(res){
+            router.push('/Tasktables/4')
+        }else{
+            console.log('poner mensaje de error al ingresar')
+        }
     }
 
 
     return(
         <>
-            <form className="" onSubmit={(e) => signIn(e)}>
+            {switchForm ? 
+            <form className="forms shadow-lg w-96 mx-auto p-4 mt-40" onSubmit={(e) => signIn(e)}>
                 <div className="form-group">
-                    <label>Username</label>
-                    <input name="username"></input>
+                    <label className="text-black">Username</label>
+                    <input className="w-full p-2 rounded-lg outline-blue-500 text-black" name="username"></input>
                 </div>
                 <div className="form-group">
-                    <label>Mail</label>
-                    <input name="mail"></input>
+                    <label className="text-black">Mail</label>
+                    <input className="w-full p-2 rounded-lg outline-blue-500 text-black" name="mail"></input>
                 </div>
                 <div className="form-group">
-                    <label>Password</label>
-                    <input name="password"></input>
+                    <label className="text-black">Password</label>
+                    <input className="w-full p-2 rounded-lg outline-blue-500 text-black" type="password" name="password"></input>
                 </div>
                 <div className="form-group">
-                    <label>Confirm Password</label>
-                    <input name="confirmPassword"></input>
+                    <label className="text-black">Confirm Password</label>
+                    <input className="w-full p-2 rounded-lg outline-blue-500 text-black" type="password" name="confirmPassword"></input>
                 </div>
-                <button type="submit">Register</button>
+                <button className="bg-orange-400 w-full p-3 mt-6 text-xl" type="submit">Register</button>
             </form>
+            :
+            <form className="forms shadow-lg w-96 mx-auto p-4 mt-40" onSubmit={(e) => logIn(e)}>
+                <div className="form-group">
+                    <label className="text-black">Mail</label>
+                    <input className="w-full p-2 rounded-lg outline-blue-500 text-black" name="mail"></input>
+                </div>
+                <div className="form-group">
+                    <label className="text-black">Password</label>
+                    <input className="w-full p-2 rounded-lg outline-blue-500 text-black" type="password" name="password"></input>
+                </div>
+                <button className="bg-orange-400 w-full p-3 mt-6 text-xl" type="submit">Log in</button>
+            </form>
+        }
         </>
     )
 }
