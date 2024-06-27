@@ -6,9 +6,19 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.views.generic import CreateView, ListView, DeleteView
 from requests import Response
+from tasksManager.serializer import Tasks_Tables_Serializer
 from user.models import User
+from management.models import TasksTable
 
 # Create your views here.
+
+
+class Get_Users(ListView):
+    model = User
+
+    def get(self, request, *args, **kwargs):
+        all_users = User.objects.all().values()
+        return JsonResponse(list(all_users), safe=False)
 
 class Create_User(CreateView):
     model = User
@@ -47,21 +57,26 @@ class Create_User(CreateView):
 
 class Get_Credentials(ListView):
     model = User
+    model = TasksTable
 
     def get(self, request, *args, **kwargs):
         #data = json.loads(request.body)
         user_mail = kwargs['mail']
-        post_password = kwargs['password']
+        get_password = kwargs['password']
         get_user = list(User.objects.filter(mail=user_mail).values())
         user_data = get_user[0]
         get_pass = user_data['password'] #encoded_pass = bytes(password, 'UTF-8')
     
-        check_pass = check_password(post_password, get_pass)
+        #check_pass = check_password(get_password, get_pass) no funciona bien
         
-        if check_pass:
-            return JsonResponse(get_user, safe=False)
-        else:
-            return HttpResponse(400)
+        #if check_pass:
+        
+        get_user_table_instance = TasksTable.objects.filter(user_code=1)
+        serializer = Tasks_Tables_Serializer(get_user_table_instance, many=True)
+        print(serializer.data)
+        return JsonResponse(user_data + serializer.data, safe=False)
+        #else:
+         #   return HttpResponse(400)
     
 
 

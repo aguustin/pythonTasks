@@ -4,7 +4,7 @@ from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.shortcuts import render
 from requests import Response
 from management.models import Tasks, TasksTable
-from tasksManager.serializer import Tasks_Tables_Serializer
+from tasksManager.serializer import Tasks_Tables_Serializer, Tasks_Serializer
 from user.models import User
 
 # Create your views here.
@@ -20,10 +20,10 @@ class get_One_Table(ListView):
 
     def get(self, request, *args, **kwargs):
         table_id = kwargs['tableId']
-        get_table = TasksTable.objects.get(id=table_id)
-        serializer = Tasks_Tables_Serializer(get_table)
-
-        return JsonResponse(serializer.data)
+        get_table = Tasks.objects.filter(table_code=table_id)
+        serializer = Tasks_Serializer(get_table, many=True)
+        print(serializer.data)
+        return JsonResponse(serializer.data, safe=False)
 
 
 class Create_Tasks_Tables(CreateView):
@@ -85,7 +85,6 @@ class Get_One_Task(ListView):
     def get(self, request, *args, **kwargs):
         task_id = kwargs['taskId']
         get_task = Tasks.objects.filter(id=task_id).values()
-       
         return JsonResponse(list(get_task), safe=False)
 
 

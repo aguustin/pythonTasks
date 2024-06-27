@@ -1,0 +1,49 @@
+.yellowColor{
+    background-color: #F5D565;
+}
+
+.greenColor{
+    background-color: #32D657;
+}
+
+.pinkColor{
+    background-color: #F7D4D3;
+}
+
+.lightblueColor{
+    background-color: #E3E8EF;
+}
+
+.skinColor{
+    background-color: #F5E8D5;
+}
+
+.form-task{
+    position: fixed;
+    top: 10vh;
+    right: 2vw;
+    width: 650px;
+}
+
+.borders{
+    border: 2px solid rgb(228, 228, 228);
+}
+
+.status-buttons button{
+    width: 48.7%;
+}
+
+.status-buttons button div{
+    height: 45px;
+    width: 45px;
+}
+
+.delete-save{
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+}
+
+.delete-save button{
+    width: 100px;
+}

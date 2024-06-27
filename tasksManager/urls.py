@@ -22,6 +22,7 @@ from user import views_user
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('get_all_users/', views_user.Get_Users.as_view(), name="get_all_users"),
     path('create_user/', csrf_exempt(views_user.Create_User.as_view()), name="create_user"),
     path('get_credentials/<str:mail>/<str:password>', views_user.Get_Credentials.as_view(), name="get_credentials"),
     path('delete_user/<int:id>', csrf_exempt(views_user.Delete_User.as_view()), name="delete_user"),

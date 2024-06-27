@@ -23,4 +23,13 @@ class Tasks_Serializer(serializers.ModelSerializer):
       class Meta:
             model = Tasks
             fields = ['id', 'table_code', 'title', 'description', 'imageType', 'state']
+
+#class Users_TaskTable_Serializer(serializers.ModelSerializer):
+
+#      user_code = User_Serializer()
+#      table_code = Tasks_Tables_Serializer()
+#
+ #     class Meta:
+#            model = Users_TaskTable
+#            fields = ['id', 'user_code', 'table_code']
    
