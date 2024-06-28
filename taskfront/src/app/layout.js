@@ -1,6 +1,8 @@
 import { Inter } from "next/font/google";
 import Navbar from "./NavBar/navbar";
 import "./globals.css";
+import { UserContextProvider } from "./context/userContext";
+import { TasksContextProvider } from "./context/tasksContext";
 
 
 export const metadata = {
@@ -12,8 +14,12 @@ export default function RootLayout({children}) {
   return (
     <html lang="en">
       <body className="h-screen bg-white">
-        <Navbar/>
-        {children}
+        <TasksContextProvider>
+          <UserContextProvider>
+            <Navbar/>
+            {children}
+          </UserContextProvider>
+        </TasksContextProvider>
       </body>
     </html>
   );

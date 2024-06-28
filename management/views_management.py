@@ -1,7 +1,7 @@
 import json
 from django.http import HttpResponse, JsonResponse
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, render
 from requests import Response
 from management.models import Tasks, TasksTable
 from tasksManager.serializer import Tasks_Tables_Serializer, Tasks_Serializer
@@ -15,6 +15,19 @@ class get_Taks_Tables(ListView):
         get_Taks_Tables = TasksTable.objects.all().values()
         return JsonResponse(list(get_Taks_Tables), safe=False)
     
+class get_User_Tables(ListView):
+    model = User
+    model = TasksTable
+
+    def get(self, request, *args, **kwargs):
+        get_user_id = kwargs['sessionId']
+        #user_instance = User.objects.filter(id=get_user_id)
+        users = get_object_or_404(User, id=get_user_id)
+        get_user_table = TasksTable.objects.filter(user_code=users).values()
+
+        return JsonResponse(list(get_user_table), safe=False)
+
+
 class get_One_Table(ListView):
     model = TasksTable
 
@@ -34,10 +47,10 @@ class Create_Tasks_Tables(CreateView):
         data = json.loads(request.body)
         user_id = data.get('userId')
         title = data.get('title')
-        date = data.get('date')
+       # date = data.get('date')
         get_user_instance = User.objects.get(id=user_id)
         print(get_user_instance)
-        save_tasks_table = TasksTable.objects.create(user_code=get_user_instance, title=title, date=date)
+        save_tasks_table = TasksTable.objects.create(user_code=get_user_instance, title=title)
         save_tasks_table.save()
 
         return HttpResponse(200)

@@ -6,3 +6,18 @@
     transform: translateY(-5px);
     transition: all .5s;
 }
+
+.add-new-table{
+    width: 378px;
+    height: 439px;
+}
+
+.abc{
+    height: 218px;
+}
+
+.abc img{
+    height: 52px;
+    width: 52px;
+    margin-bottom: 30px;
+}

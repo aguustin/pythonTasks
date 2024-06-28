@@ -16,14 +16,17 @@ import checkImg from "../../assets/dcclPng/check.png"
 import checkBImg from "../../assets/dcclPng/checkB.png"
 import closeImg from "../../assets/dcclPng/close.png"
 import Link from 'next/link'
-const { useState, useEffect } = require("react")
+import TasksContext from '@/app/context/tasksContext'
+const { useState, useEffect, useContext } = require("react")
 
 function Page({params}){
     console.log(params.tableId)
 
     const [tasks, setTasks] = useState([])
     const [displayForm, setDisplayForm] = useState(false)
-    
+    const [taskType, setTaskType] = useState()
+    const [tstate , setTState] = useState()
+    const {tables, createTaskContext} = useContext(TasksContext)
 
     useEffect(() => {
         fetch(`http://127.0.0.1:8000/get_one_table/${params.tableId}`)
@@ -31,7 +34,25 @@ function Page({params}){
         .then((json) => setTasks(json))
     }, [])
 
-    console.log(tasks)
+
+    const saveTask = (e) => {
+        e.preventDefault()
+        table_id = data.get('table_id')
+        title = data.get('title')
+        description =  data.get('description')
+        imageType = data.get('imageType')
+        state = data.get('state')
+
+        const data = {
+            table_id: tables.id,
+            title: taskTitle,
+            description: taskDesc,
+            imageType: taskType,
+            state: tstate
+        } 
+
+        createTaskContext(data)
+    }
 
     return(
         <>
@@ -104,7 +125,7 @@ function Page({params}){
                     </div>
                 </div>
                 {displayForm && 
-                    <form className='form-task  top-10 shadow-lg right-20 bg-white rounded-2xl p-4'>
+                    <form className='form-task  top-10 shadow-lg right-20 bg-white rounded-2xl p-4' onSubmit={(e) => saveTask(e)}>
                         <div className='flex justify-between w-full'>
                             <p>Task details</p>
                             <button onClick={() => setDisplayForm(!displayForm)}><img src={closeImg.src} alt=""></img></button>
@@ -115,33 +136,33 @@ function Page({params}){
                         </div>
                         <div className='form-group mt-4'>
                             <label className='text-sm text-slate-400'>Task description</label>
-                            <textarea className='borders w-full border-current outline-blue-500 rounded-lg p-2 font-semibold mt-2' rows={10} type="text" name="taskTitle"></textarea>
+                            <textarea className='borders w-full border-current outline-blue-500 rounded-lg p-2 font-semibold mt-2' rows={10} type="text" name="taskDesc"></textarea>
                         </div>
                         <div className='form-group mt-4'>
                             <label className='text-sm text-slate-400'>Icon</label>
                             <div className='flex mt-2 ml-2'>
-                                <button className='bg-slate-200 rounded-lg p-3'><img src={coffeeImg.src}></img></button>
-                                <button className='bg-slate-200 rounded-lg p-3 ml-3'><img src={speech_bubbleImg.src}></img></button>
-                                <button className='bg-slate-200 rounded-lg p-3 ml-3'><img src={stack_of_booksImg.src}></img></button>
-                                <button className='bg-slate-200 rounded-lg p-3 ml-3'><img src={stopwatchImg.src}></img></button>
-                                <button className='bg-slate-200 rounded-lg p-3 ml-3'><img src={studentImg.src}></img></button>
-                                <button className='bg-slate-200 rounded-lg p-3 ml-3'><img src={treadmillImg.src}></img></button>
+                                <button className='bg-slate-200 rounded-lg p-3' onClick={() => setTaskType(0)}><img src={coffeeImg.src}></img></button>
+                                <button className='bg-slate-200 rounded-lg p-3 ml-3' onClick={() => setTaskType(1)}><img src={speech_bubbleImg.src}></img></button>
+                                <button className='bg-slate-200 rounded-lg p-3 ml-3' onClick={() => setTaskType(2)}><img src={stack_of_booksImg.src}></img></button>
+                                <button className='bg-slate-200 rounded-lg p-3 ml-3' onClick={() => setTaskType(3)}><img src={stopwatchImg.src}></img></button>
+                                <button className='bg-slate-200 rounded-lg p-3 ml-3' onClick={() => setTaskType(4)}><img src={studentImg.src}></img></button>
+                                <button className='bg-slate-200 rounded-lg p-3 ml-3' onClick={() => setTaskType(5)}><img src={treadmillImg.src}></img></button>
                             </div>
                         </div>
                         <div className='form-group mt-2'>
                             <label className='text-sm text-slate-400'>Status</label>
                             <div className='status-buttons flex flex-wrap'>
-                                <button className='borders relative flex items-center p-2 justify-between rounded-lg mx-1 mt-2'>
+                                <button className='borders relative flex items-center p-2 justify-between rounded-lg mx-1 mt-2' onClick={() => setTState(0)}>
                                     <div className='bg-orange-300 rounded-lg flex items-center justify-center'><img src={Time_atack_duotoneImg.src}></img></div>
                                     <label>In Progress</label>
                                     <img className='w-5' src={checkImg.src}></img>
                                 </button>
-                                <button className='borders relative flex items-center p-2 justify-between rounded-lg mx-1 mt-2'>
+                                <button className='borders relative flex items-center p-2 justify-between rounded-lg mx-1 mt-2' onClick={() => setTState(1)}>
                                 <div className='bg-green-300 rounded-lg flex items-center justify-center'><img src={Done_roundImg.src} alt=""></img></div>
                                     <label>Completed</label>
                                     <img className='w-5' src={checkImg.src}></img>
                                 </button>
-                                <button className='borders relative flex items-center p-2 justify-between rounded-lg mx-1 mt-2'>
+                                <button className='borders relative flex items-center p-2 justify-between rounded-lg mx-1 mt-2' onClick={() => setTState(2)}>
                                 <div className='bg-red-300 rounded-lg flex items-center justify-center'><img src={close_ring_duotoneImg.src} alt=""></img></div>
                                     <label>Won`t do</label>
                                     <img className='w-5' src={checkImg.src}></img>
@@ -154,7 +175,7 @@ function Page({params}){
                                 <label>Delete</label>
                                 <img src={Trash.src}></img>
                             </button>
-                            <button className='bg-blue-300 text-white mx-1 flex items-center p-2 rounded-lg justify-between'>
+                            <button className='bg-blue-300 text-white mx-1 flex items-center p-2 rounded-lg justify-between' type="submit">
                                 <label>Save</label>
                                 <img src={checkBImg.src}></img>
                             </button>

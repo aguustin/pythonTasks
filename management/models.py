@@ -1,14 +1,15 @@
+import datetime
 from django.db import models
 from django.forms import model_to_dict
 from user.models import User
+
 
 # Create your models here.
 
 class TasksTable(models.Model):
     user_code = models.ForeignKey(User, on_delete=models.CASCADE, default="")
     title = models.CharField(max_length=50, default="")
-    date = models.DateField(null=True)
-
+    date = models.DateField(auto_now_add=True)
 
     def __str__(self):
         return str(self.id)

@@ -1,13 +1,16 @@
 "use client"
-import { useRouter } from "next/navigation"
+import { useRouter } from "next/navigation";
 import { getInRequest, signInRequest } from "../../../api/userRequests"
 import '../Forms/forms.css'
-import { useState } from "react"
+import { useContext, useState } from "react"
+import UserContext from "../context/userContext"
 
 function Form(){
 
-    const router = useRouter
+    const router = useRouter()
+    const { session, logInContext } = useContext(UserContext)
     const [switchForm, setSwitchForm] = useState(false)
+    console.log("session: ", session)
 
     const signIn = async (e) => {
         e.preventDefault()
@@ -25,21 +28,18 @@ function Form(){
 
     const logIn = async (e) => {
         e.preventDefault()
-
         
         const mail = e.target.elements.mail.value
         const password = e.target.elements.password.value
-        
+        logInContext(mail, password)
 
-        const res = await getInRequest(mail, password)
-
-        if(res){
-            router.push('/Tasktables/4')
-        }else{
-            console.log('poner mensaje de error al ingresar')
-        }
     }
-
+    
+    if(session){
+        router.push('/Tasktables')
+    }else{
+        console.log('poner mensaje de error al ingresar')
+    }
 
     return(
         <>
