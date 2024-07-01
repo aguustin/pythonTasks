@@ -25,13 +25,12 @@ const { useState, useEffect, useContext } = require("react")
 function Page({params}){
     console.log(params.tableId)
 
-    const [tasks, setTasks] = useState([])
     const [displayForm, setDisplayForm] = useState(false)
     const [taskType, setTaskType] = useState()
     const [tstate , setTState] = useState()
     const [editForm, setEditForm] = useState(false)
     const [editInfo, setEditInfo] = useState([])
-    const {tables, createTaskContext, updateTaskContext} = useContext(TasksContext)
+    const {tasks, setTasks , tables, createTaskContext, updateTaskContext} = useContext(TasksContext)
     
     useEffect(() => {
         fetch(`http://127.0.0.1:8000/get_one_table/${params.tableId}`)

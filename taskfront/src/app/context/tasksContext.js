@@ -22,8 +22,7 @@ export const TasksContextProvider = ({children}) => {
 
     const updateTaskContext = async (data) => {
         const res = await updateTaskRequest(data)
-        
-        setTasks(tasks.map((updateTask) => updateTask.id === data.taskId && [...updateTask, updateTask.title = data.title, updateTask.description = data.description, updateTask.imageType = data.imageType, updateTask.state = data.state]))  //updatear esto en tiempo real
+        //setTasks(tasks.map((updateTask) => updateTask.id === data.taskId && [...updateTask, updateTask.title = data.title, updateTask.description = data.description, updateTask.imageType = data.imageType, updateTask.state = data.state]))  //updatear esto en tiempo real
     }
 
     return(
