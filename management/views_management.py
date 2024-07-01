@@ -35,8 +35,8 @@ class get_One_Table(ListView):
         table_id = kwargs['tableId']
         get_table = Tasks.objects.filter(table_code=table_id)
         serializer = Tasks_Serializer(get_table, many=True)
-        print(serializer.data)
-        return JsonResponse(serializer.data, safe=False)
+        print("abc:                                              ", serializer.data)
+        return JsonResponse(list(serializer.data), safe=False)
 
 
 class Create_Tasks_Tables(CreateView):
@@ -111,9 +111,7 @@ class Create_Tasks(CreateView):
         description =  data.get('description')
         imageType = data.get('imageType')
         state = data.get('state')
-
         table_instance = TasksTable.objects.get(id=table_id)
-
         save_task = Tasks.objects.create(table_code=table_instance, title=title, description=description, imageType=imageType, state=state)
         save_task.save()
 

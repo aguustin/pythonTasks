@@ -1,3 +1,8 @@
+.add-task:hover{
+    background-color: rgb(252, 169, 17);
+    transition: background-color .5s;
+}
+
 .yellowColor{
     background-color: #F5D565;
 }
@@ -47,3 +52,16 @@
 .delete-save button{
     width: 100px;
 }
+
+.desc{
+    position: relative;
+    width: 100%;
+}
+
+
+.edit-task{
+    position: absolute;
+    top: 1.2rem;
+    right: 1rem;
+}
+
