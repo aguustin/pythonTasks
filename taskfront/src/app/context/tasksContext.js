@@ -1,6 +1,6 @@
 "use client"
 
-import { saveTableRequest, createTaskRequest, updateTaskRequest } from "../../../api/taskRequest";
+import { saveTableRequest, createTaskRequest, updateTableRequest, updateTaskRequest, deleteTaskRequest } from "../../../api/taskRequest";
 
 const { createContext, useState } = require("react");
 
@@ -13,20 +13,37 @@ export const TasksContextProvider = ({children}) => {
     const saveTableContext = async (data) => {
         const res = await saveTableRequest(data)
         console.log(res.data)
-        setTables([...tables, data])
+        setTables([{...tables, data}])
+    }
+
+    const updateTableContext = async (taskTableId, tableTitle) => {
+       /* data = {
+            taskTableId: taskTableId,
+
+        }*/
+        await updateTableRequest(taskTableId, tableTitle)
+        location.reload()
     }
 
     const createTaskContext = async (data) => {
         await createTaskRequest(data)
+        setTasks([...tasks, data])
     }
 
     const updateTaskContext = async (data) => {
         const res = await updateTaskRequest(data)
-        //setTasks(tasks.map((updateTask) => updateTask.id === data.taskId && [...updateTask, updateTask.title = data.title, updateTask.description = data.description, updateTask.imageType = data.imageType, updateTask.state = data.state]))  //updatear esto en tiempo real
+        console.log("t: ", tasks)
+        setTasks(tasks.map((updateTask) => updateTask.id === data.taskId ? {...updateTask, title: data.title, description: data.description, imageType: data.imageType, state: data.state} : updateTask))  //updatear esto en tiempo real
+    }
+
+    const deleteTaskContext = async (taskId) => {
+        console.log("deleting")
+        await deleteTaskRequest(taskId)
+        location.reload()
     }
 
     return(
-        <TasksContext.Provider value={{tasks, setTasks, tables, setTables, saveTableContext, createTaskContext, updateTaskContext }}>{children}</TasksContext.Provider>
+        <TasksContext.Provider value={{tasks, setTasks, tables, setTables, saveTableContext, updateTableContext, createTaskContext, updateTaskContext, deleteTaskContext }}>{children}</TasksContext.Provider>
     )
 }
 

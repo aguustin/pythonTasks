@@ -61,7 +61,20 @@
 
 .edit-task{
     position: absolute;
-    top: 1.2rem;
+    top: 2.3rem;
     right: 1rem;
 }
 
+.tasks-container{
+    overflow-y: scroll;
+    height: 80%;
+}
+
+.tasks-container::-webkit-scrollbar{
+    background-color: rgb(230, 230, 230);
+    width: 4px;
+}
+
+.tasks-container::-webkit-scrollbar-thumb{
+    background-color: orange;
+}

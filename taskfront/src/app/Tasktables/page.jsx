@@ -12,7 +12,7 @@ function TaskTables() {
     const {session} = useContext(UserContext)
     const {tables} = useContext(TasksContext)
 
-    console.log(tables)
+    console.log("tl: ", tables)
 
     return(
         <>

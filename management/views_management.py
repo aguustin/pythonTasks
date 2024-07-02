@@ -35,7 +35,7 @@ class get_One_Table(ListView):
         table_id = kwargs['tableId']
         get_table = Tasks.objects.filter(table_code=table_id)
         serializer = Tasks_Serializer(get_table, many=True)
-        print("abc:                                              ", serializer.data)
+
         return JsonResponse(list(serializer.data), safe=False)
 
 
@@ -49,7 +49,6 @@ class Create_Tasks_Tables(CreateView):
         title = data.get('title')
        # date = data.get('date')
         get_user_instance = User.objects.get(id=user_id)
-        print(get_user_instance)
         save_tasks_table = TasksTable.objects.create(user_code=get_user_instance, title=title)
         save_tasks_table.save()
 
@@ -61,13 +60,12 @@ class Update_Tasks_Table(UpdateView):
 
     def post(self, request, *args, **kwargs):
         data = json.loads(request.body)
-        task_table_id = data.get('taskTableId')
-        title = data.get('title')
-        date = data.get('date')
+        print(data['tableTitle'])
+        task_table_id = data['taskTableId']
+        title = data['tableTitle']
         task_table_instance = TasksTable.objects.get(id=task_table_id)
         task_table_instance.title = title
-        task_table_instance.date = date
-        task_table_instance.save(update_fields=['title', 'date'])
+        task_table_instance.save(update_fields=['title'])
         
         return HttpResponse(200)
 
@@ -141,8 +139,9 @@ class Update_Tasks(UpdateView):
 class Delete_Tasks(DeleteView):
     model = Tasks
 
-    def delete(self, request, *args,**kwargs):
+    def delete(self, request, *args, **kwargs):
         task_id = kwargs['taskId']
+        print(task_id)
         Tasks.objects.filter(id=task_id).delete()
 
         return HttpResponse(200)

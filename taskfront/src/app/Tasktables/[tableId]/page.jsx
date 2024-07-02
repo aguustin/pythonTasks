@@ -17,7 +17,8 @@ import treadmillImg from "../../assets/dcclPng/treadmill.png"
 import checkImg from "../../assets/dcclPng/check.png"
 import checkBImg from "../../assets/dcclPng/checkB.png"
 import closeImg from "../../assets/dcclPng/close.png"
-import addlistImg from '../../assets/dcclPng/addlist.png' 
+import addlistImg from '../../assets/dcclPng/addlist.png'
+import clearImg from "../../assets/dcclPng/clear.png" 
 import Link from 'next/link'
 import TasksContext from '@/app/context/tasksContext'
 const { useState, useEffect, useContext } = require("react")
@@ -30,7 +31,12 @@ function Page({params}){
     const [tstate , setTState] = useState()
     const [editForm, setEditForm] = useState(false)
     const [editInfo, setEditInfo] = useState([])
-    const {tasks, setTasks , tables, createTaskContext, updateTaskContext} = useContext(TasksContext)
+    const [openFormTitle, setOpenFormTitle] = useState(false)
+    let tableTitle = null
+    let taskTableId = null
+    const {tasks, setTasks , tables, createTaskContext, updateTaskContext, updateTableContext, deleteTaskContext} = useContext(TasksContext)
+
+    console.log("tl: ", tables)
     
     useEffect(() => {
         fetch(`http://127.0.0.1:8000/get_one_table/${params.tableId}`)
@@ -39,7 +45,14 @@ function Page({params}){
     }, [])
     
     console.log(tasks)
+
+    if(tasks.length > 0){
+
+        tableTitle = tasks[0]?.table_code.title
+        taskTableId = tasks[0]?.table_code.id
+    }
     
+
     const saveTask = (e) => {
         e.preventDefault()
         
@@ -51,6 +64,8 @@ function Page({params}){
             state: tstate
         } 
         createTaskContext(data)
+
+        setDisplayForm(!displayForm)
     }
     
     const editTaskForm = (taskId, title, description, imageType, state) => {
@@ -79,7 +94,7 @@ function Page({params}){
 
     const updateTask = (e, taskId, title, description) => {
         e.preventDefault()
-        console.log("asdasd:" , editInfo)
+        
         const data = {
             taskId: taskId,
             title: title,
@@ -91,27 +106,34 @@ function Page({params}){
         updateTaskContext(data)
     }
 
+    const updateTable = (e, taskTableId, tableTitle) => {
+        e.preventDefault()
+        console.log("estoy saliendo con un chabon ", e.target.elements.tableTitle.value)
+        updateTableContext(taskTableId, e.target.elements.tableTitle.value)
+    }
+
 
     return(
         <>
-            <div className="text-black w-2/3 mx-auto mt-9 p-9 justify-center">
+            {openFormTitle && <form className='shadow-lg text-black' onSubmit={(e) => updateTable(e, taskTableId, tableTitle)}>
+                <input name="tableTitle" type="text"></input>
+                <button type="submit">Update</button>
+            </form>}
+            <div className="tasks-container text-black w-2/3 mx-auto mt-9 p-9 justify-center">
                 <div className="flex justify-center items-center">
                     <div>
                         <img src={logoImg.src} alt=""></img>
                     </div>
                     <div>
-                        <div className="flex">
-                            <h3 className="text-5xl">My Task Board</h3>
-                            <img src={Edit_duotoneImg.src} alt=""></img>
+                        <div className="flex">                             
+                                <h3 className="text-5xl">{tableTitle}</h3>
+                            <button onClick={() => setOpenFormTitle(!openFormTitle)}><img src={Edit_duotoneImg.src} alt=""></img></button>
                         </div>
                         <label>Tasks to keep ordanised</label>
                     </div>
                 </div>
-                <button onClick={() => setDisplayForm(!displayForm)} className="add-task bg-slate-100 flex justify-between w-2/3 p-6 text-2xl font-semibold items-center rounded-2xl mx-auto mt-6">
+                <button onClick={() => setDisplayForm(!displayForm)} className="add-task bg-slate-100 flex justify-between w-1/3 p-6 text-2xl font-semibold items-center rounded-2xl mx-auto mt-6">
                         <div className='flex justify-between w-1/2 items-center'>
-                            <div>
-                                <img src={Done_roundImg.src} alt=""></img>
-                            </div>
                             <p>Add New Task</p>
                         </div>
                         <div>
@@ -139,12 +161,13 @@ function Page({params}){
                                 <button onClick={() => editTaskForm(t.id, t.title, t.description, t.imageType, t.state)} className='edit-task'><img src={editImg.src} alt=""></img></button>
                             </div>
                         </div>
-                            <div>
-                                {t.state == 0 && <div className='p-4 bg-orange-400 rounded-lg'><img src={Time_atack_duotoneImg.src} alt=""></img></div>}
-                                {t.state == 1 && <div className='p-4 bg-green-300 rounded-lg'><img src={Done_roundImg.src} alt=""></img></div>}
-                                {t.state == 2 && <div className='p-4 bg-red-300 rounded-lg'><img src={crossImg.src} alt=""></img></div>}
-                            </div>
+                        <div>
+                            {t.state == 0 && <div className='p-4 bg-orange-400 rounded-lg'><img src={Time_atack_duotoneImg.src} alt=""></img></div>}
+                            {t.state == 1 && <div className='p-4 bg-green-300 rounded-lg'><img src={Done_roundImg.src} alt=""></img></div>}
+                            {t.state == 2 && <div className='p-4 bg-red-300 rounded-lg'><img src={crossImg.src} alt=""></img></div>}
+                        </div>
                    </div>
+                   <button onClick={() => deleteTaskContext(t.id)}><img src={clearImg.src}></img></button>
                 </>
                 )}
                 {editInfo.map((edit) => 
