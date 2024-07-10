@@ -40,5 +40,6 @@ urlpatterns = [
     path('get_one_task/<int:taskId>', views_management.Get_One_Task.as_view(), name="get one task"),
     path('create_task/', csrf_exempt(views_management.Create_Tasks.as_view()), name="create_task"),
     path('update_tasks/', csrf_exempt(views_management.Update_Tasks.as_view()), name="update_task"),
-    path('delete_tasks/<int:taskId>', csrf_exempt(views_management.Delete_Tasks.as_view()), name="delete_task")
+    path('delete_tasks/<int:taskId>', csrf_exempt(views_management.Delete_Tasks.as_view()), name="delete_task"),
+    #path('share_table/', csrf_exempt(views_management.Share_Table.as_view()), name="share_tables")
 ]

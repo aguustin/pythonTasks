@@ -25,7 +25,7 @@ class get_User_Tables(ListView):
         #user_instance = User.objects.filter(id=get_user_id)
         users = get_object_or_404(User, id=get_user_id)
         get_user_table = TasksTable.objects.filter(user_code=users).values()
-
+        #get_user_shared_tables = TasksTable.objects.filter(share_with=users.mail)
         return JsonResponse(list(get_user_table), safe=False)
     
 
@@ -155,3 +155,13 @@ class Delete_Tasks(DeleteView):
         Tasks.objects.filter(id=task_id).delete()
 
         return HttpResponse(200)
+    
+
+#class Share_Table(CreateView):
+
+    def post(self, request, *args, **kwargs):
+        data = json.loads(request.body)
+        table_id = data.get('tableId')
+        user_sender_id = data.get('userSenderId')
+        share_with = data.get('shareWith')
+

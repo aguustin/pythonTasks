@@ -9,6 +9,7 @@ class TasksTableAdmin(admin.ModelAdmin):
         'user_code',
         'title',
         'date',
+        'shared_by',
         'share_with'
     ]
 
