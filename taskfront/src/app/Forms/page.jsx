@@ -60,6 +60,7 @@ function Form(){
                     <label className="text-black">Confirm Password</label>
                     <input className="w-full p-2 rounded-lg outline-blue-500 text-black" type="password" name="confirmPassword"></input>
                 </div>
+                <button onClick={() => setSwitchForm(!switchForm)}>cd</button>
                 <button className="bg-orange-400 w-full p-3 mt-6 text-xl" type="submit">Register</button>
             </form>
             :
@@ -72,6 +73,7 @@ function Form(){
                     <label className="text-black">Password</label>
                     <input className="w-full p-2 rounded-lg outline-blue-500 text-black" type="password" name="password"></input>
                 </div>
+                <button onClick={() => setSwitchForm(!switchForm)}>av</button>
                 <button className="bg-orange-400 w-full p-3 mt-6 text-xl" type="submit">Log in</button>
             </form>
         }

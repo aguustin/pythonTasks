@@ -8,7 +8,8 @@ class TasksTableAdmin(admin.ModelAdmin):
     list_display = [
         'user_code',
         'title',
-        'date'
+        'date',
+        'share_with'
     ]
 
 admin.site.register(TasksTable, TasksTableAdmin)

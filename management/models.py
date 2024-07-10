@@ -7,9 +7,10 @@ from user.models import User
 # Create your models here.
 
 class TasksTable(models.Model):
-    user_code = models.ForeignKey(User, on_delete=models.CASCADE, default="")
+    user_code = models.ForeignKey(User, on_delete=models.CASCADE)
     title = models.CharField(max_length=50, default="")
-    date = models.DateField(auto_now_add=True)
+    date = models.DateField(auto_now_add=True, null=True)
+    share_with = models.EmailField(max_length= 50, default="")
 
     def __str__(self):
         return str(self.id)
@@ -25,7 +26,7 @@ class TasksTable(models.Model):
 
 
 class Tasks(models.Model):
-    table_code = models.ForeignKey(TasksTable ,on_delete=models.CASCADE, default="")
+    table_code = models.ForeignKey(TasksTable ,on_delete=models.CASCADE)
     title = models.CharField(max_length=100, default="")
     description = models.TextField()
     imageType = models.IntegerField(null=False)

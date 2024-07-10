@@ -7,7 +7,7 @@ class UserAdmin(admin.ModelAdmin):
     list_display = [
         'mail',
         'username',
-        'password'
+        'password',
     ]
 
 admin.site.register(User, UserAdmin)
