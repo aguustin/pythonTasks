@@ -10,7 +10,6 @@ function Form(){
     const router = useRouter()
     const { session, logInContext } = useContext(UserContext)
     const [switchForm, setSwitchForm] = useState(false)
-    console.log("session: ", session)
 
     const signIn = async (e) => {
         e.preventDefault()

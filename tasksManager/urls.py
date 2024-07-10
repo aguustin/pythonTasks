@@ -31,6 +31,7 @@ urlpatterns = [
 
     path('get_tasks_tables/', views_management.get_Taks_Tables.as_view(), name="get_tasks_tables"),
     path('get_user_tables/<int:sessionId>', views_management.get_User_Tables.as_view(), name="get_user_tables"),
+    path('get_table/<int:tableId>', views_management.get_Table_By_Id.as_view(), name="get_table_by_id"),
     path('get_one_table/<int:tableId>', views_management.get_One_Table.as_view(), name="get_table"),
     path('create_tasks_tables/', csrf_exempt(views_management.Create_Tasks_Tables.as_view()), name="create_tasks_tables"),
     path('update_tasks_table/', csrf_exempt(views_management.Update_Tasks_Table.as_view()), name="update_tasks_table"),

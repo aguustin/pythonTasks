@@ -3,6 +3,7 @@ from django.http import HttpResponse, JsonResponse
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.shortcuts import get_object_or_404, render
 from requests import Response
+from django.forms.models import model_to_dict
 from management.models import Tasks, TasksTable
 from tasksManager.serializer import Tasks_Tables_Serializer, Tasks_Serializer
 from user.models import User
@@ -26,15 +27,24 @@ class get_User_Tables(ListView):
         get_user_table = TasksTable.objects.filter(user_code=users).values()
 
         return JsonResponse(list(get_user_table), safe=False)
+    
 
+class get_Table_By_Id(ListView):
+    def get(self, request, *args, **kwargs):
+        table_id = kwargs['tableId']
+        get_table = TasksTable.objects.filter(id=table_id).values()
+        print("get_table_by_id ", get_table)
+        return JsonResponse(list(get_table), safe=False)
 
 class get_One_Table(ListView):
     model = TasksTable
 
     def get(self, request, *args, **kwargs):
         table_id = kwargs['tableId']
-        get_table = Tasks.objects.filter(table_code=table_id)
-        serializer = Tasks_Serializer(get_table, many=True)
+        #get_table = TasksTable.objects.filter(table_code=table_id).values()
+        get_table_tasks = Tasks.objects.filter(table_code=table_id)
+        print("get_table_tasks ", get_table_tasks)
+        serializer = Tasks_Serializer(get_table_tasks, many=True)
 
         return JsonResponse(list(serializer.data), safe=False)
 
@@ -51,8 +61,8 @@ class Create_Tasks_Tables(CreateView):
         get_user_instance = User.objects.get(id=user_id)
         save_tasks_table = TasksTable.objects.create(user_code=get_user_instance, title=title)
         save_tasks_table.save()
-
-        return HttpResponse(200)
+        get_new_table = TasksTable.objects.filter(id=save_tasks_table.id).values()
+        return JsonResponse(list(get_new_table), safe=False)
     
 
 class Update_Tasks_Table(UpdateView):
@@ -60,7 +70,7 @@ class Update_Tasks_Table(UpdateView):
 
     def post(self, request, *args, **kwargs):
         data = json.loads(request.body)
-        print(data['tableTitle'])
+        print(data['taskTableId'], " " , data['tableTitle'])
         task_table_id = data['taskTableId']
         title = data['tableTitle']
         task_table_instance = TasksTable.objects.get(id=task_table_id)
@@ -112,8 +122,8 @@ class Create_Tasks(CreateView):
         table_instance = TasksTable.objects.get(id=table_id)
         save_task = Tasks.objects.create(table_code=table_instance, title=title, description=description, imageType=imageType, state=state)
         save_task.save()
-
-        return HttpResponse(200)
+        task_dict = model_to_dict(save_task)
+        return JsonResponse(task_dict, safe=False)
     
 
 class Update_Tasks(UpdateView):

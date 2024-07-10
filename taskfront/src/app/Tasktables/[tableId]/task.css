@@ -1,3 +1,23 @@
+.background-form-title{
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgb(109, 109, 109);
+    opacity: 0.4;
+    z-index: 2;
+}
+
+.form-title{
+    top: 25%;
+    left: 50%;
+    transform: translateY(-50%);
+    transform: translateX(-50%);
+    width: 400px;
+    z-index: 3;
+}
+
 .add-task:hover{
     background-color: rgb(252, 169, 17);
     transition: background-color .5s;
@@ -67,6 +87,7 @@
 
 .tasks-container{
     overflow-y: scroll;
+    min-width: 450px;
     height: 80%;
 }
 
@@ -77,4 +98,90 @@
 
 .tasks-container::-webkit-scrollbar-thumb{
     background-color: orange;
+}
+
+.task{
+    position: relative;
+}
+
+.clear-button{
+    position: absolute;
+    top: 7px;
+    right: 10px;
+}
+
+
+@media screen and (max-width: 1250px) {
+    .tasks-container{
+        width: 90%;
+        padding: 9 0;
+    }
+    .task{
+        width: 70%;
+    }
+    .add-task{
+        width: 300px;
+    }
+    .add-task div:first-child{
+        width: 1000px;
+    }
+
+}
+
+@media screen and (max-width: 920px) {
+    .tasks-container{
+        width: 95%;
+        padding: 9 0;
+    }
+    .task{
+        position: relative;
+        width: 450px;
+    }
+    .add-task{
+        width: 300px;
+    }
+    .add-task div:first-child{
+        width: 1000px;
+    }
+
+}
+
+@media screen and (max-width: 670px) {
+    .form-task{
+        width: 450px;
+    }
+    .icon{
+        margin-top: 2px;
+    }
+    .status button{
+        width: 200px;
+    }
+    .form-task textarea{
+        height: 100px;
+    }
+    .delete-save button{
+        width: 90px;
+    }
+}
+
+@media screen and (max-width: 555px) {
+    .tasks-container{
+        width: 100%;
+        padding:0px 10px;
+    }
+
+    .tasks-container h3{
+        font-size: 34px;
+    }
+    .task{
+        position: relative;
+        width: 430px;
+    }
+    .add-task{
+        width: 300px;
+    }
+    .add-task div:first-child{
+        width: 1000px;
+    }
+
 }

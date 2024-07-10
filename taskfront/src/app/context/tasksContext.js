@@ -1,8 +1,8 @@
 "use client"
 
-import { saveTableRequest, createTaskRequest, updateTableRequest, updateTaskRequest, deleteTaskRequest } from "../../../api/taskRequest";
+import { getTableRequest, saveTableRequest, createTaskRequest, updateTableRequest, updateTaskRequest, deleteTaskRequest } from "../../../api/taskRequest";
 
-const { createContext, useState } = require("react");
+const { createContext, useState, useEffect } = require("react");
 
 const TasksContext = createContext()
 
@@ -10,40 +10,42 @@ export const TasksContextProvider = ({children}) => {
     const [tables, setTables] = useState()
     const [tasks, setTasks] = useState([])
 
-    const saveTableContext = async (data) => {
-        const res = await saveTableRequest(data)
-        console.log(res.data)
-        setTables([{...tables, data}])
+    const getTableContext = async (tableId) => {
+        const res = await getTableRequest(tableId)
+        setTables(res.data)
     }
 
-    const updateTableContext = async (taskTableId, tableTitle) => {
-       /* data = {
-            taskTableId: taskTableId,
+    const saveTableContext = async (data) => {
+        const res = await saveTableRequest(data)
+        setTables([...tables, ...res.data])
+    }
 
-        }*/
-        await updateTableRequest(taskTableId, tableTitle)
+    const updateTableContext = (taskTableId, tableTitle) => {
+        console.log(taskTableId, " ", tableTitle)
+        updateTableRequest(taskTableId, tableTitle)
         location.reload()
     }
 
     const createTaskContext = async (data) => {
-        await createTaskRequest(data)
-        setTasks([...tasks, data])
+        const res = await createTaskRequest(data)
+        console.log("res: ", res)
+        setTasks([...tasks, res.data])
     }
 
-    const updateTaskContext = async (data) => {
-        const res = await updateTaskRequest(data)
-        console.log("t: ", tasks)
+    const updateTaskContext = (data) => {
+        updateTaskRequest(data)
+        console.log("t: ", data)
         setTasks(tasks.map((updateTask) => updateTask.id === data.taskId ? {...updateTask, title: data.title, description: data.description, imageType: data.imageType, state: data.state} : updateTask))  //updatear esto en tiempo real
     }
 
-    const deleteTaskContext = async (taskId) => {
+    const deleteTaskContext = (taskId) => {
         console.log("deleting")
-        await deleteTaskRequest(taskId)
+        deleteTaskRequest(taskId)
         location.reload()
     }
 
     return(
-        <TasksContext.Provider value={{tasks, setTasks, tables, setTables, saveTableContext, updateTableContext, createTaskContext, updateTaskContext, deleteTaskContext }}>{children}</TasksContext.Provider>
+        <TasksContext.Provider value={{tasks, setTasks, tables, setTables, getTableContext, saveTableContext, updateTableContext, createTaskContext, updateTaskContext, deleteTaskContext }}>{children}</TasksContext.Provider>
     )
 }
 

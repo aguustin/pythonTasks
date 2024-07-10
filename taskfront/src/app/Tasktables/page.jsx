@@ -8,11 +8,8 @@ import UserContext from '../context/userContext';
 import TasksContext from '../context/tasksContext';
 
 function TaskTables() {
-
     const {session} = useContext(UserContext)
     const {tables} = useContext(TasksContext)
-
-    console.log("tl: ", tables)
 
     return(
         <>
@@ -29,8 +26,9 @@ function TaskTables() {
                     </div>
             </Link>
             </div>
-            {tables?.map((t) => <Link key={t.id} href={`/Tasktables/${t.id}`}>
-                <div className="taskTable max-h-60 text-black text-center shadow-xl shadow-slate-400 rounded-md border-black rounded-lg m-6">
+            {tables?.map((t) => 
+                <div className=" max-h-60 text-black text-center shadow-xl shadow-slate-400 rounded-md border-black rounded-lg m-6">
+                    <Link className='taskTable bg-slate-900' key={t.id} href={`/Tasktables/${t.id}`}>
                     <div className="h-10 w-full bg-slate-50 flex items-center justify-center">
                         <label>{t.title}</label>
                     </div>
@@ -38,8 +36,8 @@ function TaskTables() {
                     <div className="h-10 w-full bg-slate-50 flex items-center justify-center">
                         <label>{t.date}</label>
                     </div>
-                </div>
-            </Link>)}
+            </Link>
+                </div>)}
         </section>
         </>
     )
