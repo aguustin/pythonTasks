@@ -4,8 +4,8 @@ from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.shortcuts import get_object_or_404, render
 from requests import Response
 from django.forms.models import model_to_dict
-from management.models import Tasks, TasksTable
-from tasksManager.serializer import Tasks_Tables_Serializer, Tasks_Serializer
+from management.models import Tables_And_Users, Tasks, TasksTable
+from tasksManager.serializer import Tables_And_Users_Serializer, Tasks_Tables_Serializer, Tasks_Serializer
 from user.models import User
 
 # Create your views here.
@@ -15,6 +15,7 @@ class get_Taks_Tables(ListView):
     def get(self, request):
         get_Taks_Tables = TasksTable.objects.all().values()
         return JsonResponse(list(get_Taks_Tables), safe=False)
+    
     
 class get_User_Tables(ListView):
     model = User
@@ -43,7 +44,7 @@ class get_One_Table(ListView):
         table_id = kwargs['tableId']
         #get_table = TasksTable.objects.filter(table_code=table_id).values()
         get_table_tasks = Tasks.objects.filter(table_code=table_id)
-        print("get_table_tasks ", get_table_tasks)
+        
         serializer = Tasks_Serializer(get_table_tasks, many=True)
 
         return JsonResponse(list(serializer.data), safe=False)
@@ -157,11 +158,29 @@ class Delete_Tasks(DeleteView):
         return HttpResponse(200)
     
 
-#class Share_Table(CreateView):
+class Share_Table(CreateView):
 
     def post(self, request, *args, **kwargs):
         data = json.loads(request.body)
-        table_id = data.get('tableId')
-        user_sender_id = data.get('userSenderId')
-        share_with = data.get('shareWith')
+        user_code_sender_id = data.get('userSenderId')
+        table_code_id = data.get('tableId')
+        user_receives_mail = data.get('userReceivesMail')
 
+        get_user_info = User.objects.get(id=user_code_sender_id)
+        get_table_instance = TasksTable.objects.get(id=table_code_id)
+        create_shared_table = Tables_And_Users.objects.create(user_code=get_user_info, table_code=get_table_instance, shared_by=get_user_info.username, share_with=user_receives_mail)
+        create_shared_table.save()
+        
+        return HttpResponse(200)
+        
+
+class Get_Shared_tables(ListView):
+
+    def get(self, request, *args, **kwargs):
+        user_code = kwargs['userId']
+        get_user_mail = User.objects.get(id=user_code)
+        print(get_user_mail.id)
+        get_shared_tables = Tables_And_Users.objects.filter(share_with=get_user_mail.mail)
+        serialize = Tables_And_Users_Serializer(get_shared_tables, many=True)
+
+        return JsonResponse(list(serialize.data), safe=False)

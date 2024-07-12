@@ -1,19 +1,4 @@
-"""
-URL configuration for tasksManager project.
 
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/5.0/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
-"""
 from django.contrib import admin
 from django.urls import path
 from django.views.decorators.csrf import csrf_exempt
@@ -41,5 +26,6 @@ urlpatterns = [
     path('create_task/', csrf_exempt(views_management.Create_Tasks.as_view()), name="create_task"),
     path('update_tasks/', csrf_exempt(views_management.Update_Tasks.as_view()), name="update_task"),
     path('delete_tasks/<int:taskId>', csrf_exempt(views_management.Delete_Tasks.as_view()), name="delete_task"),
-    #path('share_table/', csrf_exempt(views_management.Share_Table.as_view()), name="share_tables")
+    path('share_table/', csrf_exempt(views_management.Share_Table.as_view()), name="share_tables"),
+    path('get_shared_tables/<int:userId>', views_management.Get_Shared_tables.as_view(), name="get_shared_tables")
 ]

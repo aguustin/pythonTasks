@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from management.models import Tasks, TasksTable
+from management.models import Tasks, TasksTable, Tables_And_Users
 
 # Register your models here.
 
@@ -9,8 +9,8 @@ class TasksTableAdmin(admin.ModelAdmin):
         'user_code',
         'title',
         'date',
-        'shared_by',
-        'share_with'
+       #'shared_by',
+       #'share_with'
     ]
 
 admin.site.register(TasksTable, TasksTableAdmin)
@@ -25,3 +25,14 @@ class TasksAdmin(admin.ModelAdmin):
     ]
 
 admin.site.register(Tasks, TasksAdmin)
+
+
+class TablesAndUsersAdmin(admin.ModelAdmin):
+    list_display = [
+        'user_code',
+        'table_code',
+        'shared_by',
+        'share_with'
+    ]
+
+admin.site.register(Tables_And_Users, TablesAndUsersAdmin)

@@ -8,6 +8,7 @@ const UserContext = createContext()
 
 export const UserContextProvider = ({children}) => {
     const [session, setSession] = useState(null)
+    const [sharedT, setSharedT] = useState([])
     const {tables, setTables} = useContext(TasksContext)
 
     useEffect(() => {
@@ -15,14 +16,18 @@ export const UserContextProvider = ({children}) => {
         setSession(credentials);
     }, []);
       
-    if(!tables){
+    useEffect(() => {
         if(session){
                 const sessionId = session[0].id
                 fetch(`http://127.0.0.1:8000/get_user_tables/${sessionId}`)
                 .then((res) => res.json())
                 .then((json) => setTables(json))
+                fetch(`http://127.0.0.1:8000/get_shared_tables/${session[0]?.id}`)
+                .then((res) => res.json())
+                .then((json) => setSharedT(json)) 
         }
-    }
+    }, [session]);
+    
 
     const logInContext = async (mail, password) => {
         const res = await logInRequest(mail, password)
@@ -33,8 +38,9 @@ export const UserContextProvider = ({children}) => {
         setSession(res.data)
     }
 
+    
     return(
-        <UserContext.Provider value={{session, setSession, logInContext}}>{children}</UserContext.Provider>
+        <UserContext.Provider value={{session, setSession, sharedT, setSharedT, logInContext}}>{children}</UserContext.Provider>
     )
 }
 

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from management.models import Tasks, TasksTable
+from management.models import Tasks, TasksTable, Tables_And_Users
 from user.models import User
 
 class User_Serializer(serializers.ModelSerializer):
@@ -9,7 +9,6 @@ class User_Serializer(serializers.ModelSerializer):
 
 
 class Tasks_Tables_Serializer(serializers.ModelSerializer):
-      
       user_code = User_Serializer()
 
       class Meta:
@@ -17,19 +16,17 @@ class Tasks_Tables_Serializer(serializers.ModelSerializer):
             fields = ['id', 'user_code', 'title', 'date']
 
 class Tasks_Serializer(serializers.ModelSerializer):
-      
       table_code = Tasks_Tables_Serializer()
 
       class Meta:
             model = Tasks
             fields = ['id', 'table_code', 'title', 'description', 'imageType', 'state']
 
-#class Users_TaskTable_Serializer(serializers.ModelSerializer):
+class Tables_And_Users_Serializer(serializers.ModelSerializer):
+      table_code = Tasks_Tables_Serializer()
+      user_code = User_Serializer()
 
-#      user_code = User_Serializer()
-#      table_code = Tasks_Tables_Serializer()
-#
- #     class Meta:
-#            model = Users_TaskTable
-#            fields = ['id', 'user_code', 'table_code']
+      class Meta:
+          model = Tables_And_Users
+          fields = ['id', 'user_code', 'table_code', 'shared_by', 'share_with']
    

@@ -21,3 +21,33 @@
     width: 52px;
     margin-bottom: 30px;
 }
+
+.shared-button{
+    right: 2rem;
+}
+
+
+@keyframes example {
+   0%{
+        transform: rotate(0deg);
+   }
+   25%{
+        transform: rotate(-5deg);
+   }
+   50%{
+    transform: rotate(0deg);
+   }
+   75%{
+    transform: rotate(5deg);
+   }
+   100%{
+        transform: rotate(0deg);
+   }
+}
+  
+  /* The element to apply the animation to */
+  .shared-button:hover{
+ 
+    animation-name: example;
+    animation: example 3s linear infinite;
+  }
