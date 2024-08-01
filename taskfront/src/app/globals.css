@@ -25,3 +25,13 @@ body {
     text-wrap: balance;
   }
 }
+
+.ac{
+  top:11rem
+}
+
+@media screen and (max-width:705px) {
+  .ac{
+    top: 7rem;
+  }
+}

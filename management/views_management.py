@@ -7,7 +7,7 @@ from django.forms.models import model_to_dict
 from management.models import Tables_And_Users, Tasks, TasksTable
 from tasksManager.serializer import Tables_And_Users_Serializer, Tasks_Tables_Serializer, Tasks_Serializer
 from user.models import User
-
+import cloudinary
 # Create your views here.
 class get_Taks_Tables(ListView):
     model = TasksTable
@@ -55,14 +55,18 @@ class Create_Tasks_Tables(CreateView):
     model = TasksTable
 
     def post(self, request):
-        data = json.loads(request.body)
-        user_id = data.get('userId')
-        title = data.get('title')
-       # date = data.get('date')
+        #data = json.loads(request.body)
+        
+        user_id = request.POST.get('userId')
+        title = request.POST.get('title')
+        table_color = request.POST.get('table_color')
+        print('image: ', request.FILES.get('table_image'), ' color: ', table_color)
         get_user_instance = User.objects.get(id=user_id)
-        save_tasks_table = TasksTable.objects.create(user_code=get_user_instance, title=title)
+        table_image = request.FILES.get('table_image')
+        save_tasks_table = TasksTable.objects.create(user_code=get_user_instance, title=title, table_image=table_image, table_color=table_color)
         save_tasks_table.save()
         get_new_table = TasksTable.objects.filter(id=save_tasks_table.id).values()
+
         return JsonResponse(list(get_new_table), safe=False)
     
 

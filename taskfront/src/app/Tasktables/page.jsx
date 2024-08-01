@@ -26,11 +26,11 @@ function TaskTables() {
     
     return(
         <>
-        <section className="bg-slate-50 h-screen p-8 flex flex-wrap">
+        <section className="bg-slate-50 h-screen h-lvh h-svh h-dvh h-full p-8 flex flex-wrap justify-center">
             <button onClick={() => setShowSharedTable(!showSharedTable)} className='shared-button bg-slate-50 rounded-lg p-3 shadow-xl shadow-slate-400 text-black fixed z-10 text-lg text-orange-300 font-semibold'>Shared with me</button>
             <div className='add-new-table'>
             <Link href="/Tasktables/AddNewTable">
-                    <div className="taskTable max-h-60 text-black text-center shadow-xl shadow-slate-400 rounded-md border-black rounded-lg m-6">
+                    <div className="taskTable max-h-60 text-black text-center shadow-xl shadow-slate-400 rounded-md border-black rounded-lg m-6 mt-12">
                         <div className="h-10 w-full bg-slate-50 flex items-center justify-center">
                             <label>Add a new list</label>
                         </div>
@@ -55,13 +55,13 @@ function TaskTables() {
                 </div>)
                 :
                 tables?.map((t) => 
-                    <div key={t.id} className=" max-h-60 text-black text-center shadow-xl shadow-slate-400 rounded-md border-black rounded-lg m-6">
+                    <div key={t.id} className=" max-h-60 text-black text-center shadow-xl shadow-slate-400 rounded-md border-black rounded-lg m-6 mt-12">
                         <Link className='taskTable bg-slate-900' key={t.id} href={`/Tasktables/${t.id}`}>
                             <div className="h-10 w-full bg-slate-50 flex items-center justify-center">
                                 <label>{t.title}</label>
                             </div>
-                            <img src={pruebaImg.src} alt=""></img>
-                            <div className="h-10 w-full bg-slate-50 flex items-center justify-center">
+                            {t.table_image ? <img src={`https://res.cloudinary.com/drmcrdf4r/image/upload/v1722527535/${t.table_image}`} alt=""></img> : <div className='ab' style={{backgroundColor: t.table_color}}></div>}
+                            <div className="h-10 w-full bg-slate-50 flex items-center justify-center shadow-xl">
                                 <label>{t.date}</label>
                             </div>
                         </Link>

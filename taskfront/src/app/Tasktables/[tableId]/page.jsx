@@ -20,6 +20,7 @@ import closeImg from "../../assets/dcclPng/close.png"
 import addlistImg from '../../assets/dcclPng/addlist.png'
 import clearImg from "../../assets/dcclPng/clear.png" 
 import deleteImg from "../../assets/dcclPng/delete.png"
+import backImg from "../../assets/dcclPng/back.png"
 import Link from 'next/link'
 import TasksContext from '@/app/context/tasksContext'
 const { useState, useEffect, useContext } = require("react")
@@ -124,7 +125,8 @@ function Page({params}){
                 <button className='w-full mt-2 p-2 font-semibold text-lg text-white bg-orange-300' type="submit">Update</button>
             </form>
             </>}
-            <div className="tasks-container text-black w-2/3 mx-auto mt-9 p-9 justify-center">
+            <div className="tasks-container text-black w-2/3 mx-auto mt-9 p-9 justify-center relative">
+            <Link href="/Tasktables" className='absolute'><img src={backImg.src} alt=""></img></Link>
                 <div className="flex justify-center items-center">
                     <div className='mr-3'>
                         <img src={logoImg.src} alt=""></img>

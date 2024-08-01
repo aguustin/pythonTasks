@@ -1,5 +1,7 @@
 .taskTable{
     cursor: pointer;
+    height: 239px;
+    width: 318px;
 }
 
 .taskTable:hover{
@@ -7,9 +9,14 @@
     transition: all .5s;
 }
 
+.taskTable img{
+    height: 219px;
+    width: 319px;
+    object-fit: cover;
+}
+
 .add-new-table{
     width: 368px;
-    
 }
 
 .abc{
@@ -22,10 +29,14 @@
     margin-bottom: 30px;
 }
 
+.ab{
+    height: 240px;
+    width: 319px;
+}
+
 .shared-button{
     right: 2rem;
 }
-
 
 @keyframes example {
    0%{
@@ -44,10 +55,8 @@
         transform: rotate(0deg);
    }
 }
-  
-  /* The element to apply the animation to */
-  .shared-button:hover{
  
+.shared-button:hover{
     animation-name: example;
     animation: example 3s linear infinite;
-  }
+}

@@ -8,6 +8,8 @@ class TasksTable(models.Model):
     user_code = models.ForeignKey(User, on_delete=models.CASCADE)
     title = models.CharField(max_length=50, default="")
     date = models.DateField(auto_now_add=True, null=True)
+    table_image = models.FileField(upload_to='tasks', default="")
+    table_color = models.CharField(max_length=8, default="")
     #shared_by = models.IntegerField(null=True, blank=True)
     #share_with = models.EmailField(max_length= 50, default="")
 
@@ -17,6 +19,7 @@ class TasksTable(models.Model):
     def toJSON(self):
         item = model_to_dict(self)
         item['user_code'] = self.user_code.toJSON()
+        item['table_image'] = self.get_image()
         return item
     
     class Meta:
@@ -48,6 +51,7 @@ class Tasks(models.Model):
 class Tables_And_Users(models.Model):
     user_code = models.ForeignKey(User, on_delete=models.CASCADE)
     table_code = models.ForeignKey(TasksTable, on_delete=models.CASCADE)
+    #table_image = models.ImageField(upload_to="https://console.cloudinary.com/console/c-73197ba6c308d83c29c7aa764f4086/media_library/folders/c884d1c4d309355941e35b4dec5609fa4c?view_mode=mosaic")
     shared_by = models.CharField(max_length=50, default="")
     share_with = models.EmailField(max_length= 50, default="")
 

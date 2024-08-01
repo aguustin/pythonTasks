@@ -64,8 +64,8 @@ class Get_Credentials(ListView):
         user_mail = kwargs['mail']
         get_password = kwargs['password']
         get_user = list(User.objects.filter(mail=user_mail).values())
+        print("dasdasdasdasdsad: ", get_user)
         user_data = get_user[0]
-        print(user_data)
         get_pass = user_data['password']
         #encoded_pass = bytes(password, 'UTF-8')
         #check_pass = check_password(get_password, get_pass) no funciona bien
@@ -77,7 +77,7 @@ class Get_Credentials(ListView):
         print(serializer.data)
         return JsonResponse(get_user + serializer.data, safe=False)
         #else:
-         #   return HttpResponse(400)
+        return HttpResponse(200)
     
 
 

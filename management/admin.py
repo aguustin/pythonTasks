@@ -9,8 +9,8 @@ class TasksTableAdmin(admin.ModelAdmin):
         'user_code',
         'title',
         'date',
-       #'shared_by',
-       #'share_with'
+        'table_image',
+        'table_color'
     ]
 
 admin.site.register(TasksTable, TasksTableAdmin)

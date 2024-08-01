@@ -1,0 +1,18 @@
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./var/_data:/back_volume/volume
+    networks:
+      - tasks_nw
+networks:
+  tasks_nw: 
+    driver: bridge
+volumes:
+  tasks_volume:
+    external: true

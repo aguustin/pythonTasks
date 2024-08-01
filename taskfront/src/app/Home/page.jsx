@@ -1,7 +1,7 @@
 "use client"
 import { useRouter } from "next/navigation";
 import { getInRequest, signInRequest } from "../../../api/userRequests"
-import '../Forms/forms.css'
+import '../Home/forms.css'
 import { useContext, useState } from "react"
 import UserContext from "../context/userContext"
 
@@ -60,7 +60,9 @@ function Form(){
                     <label className="text-black">Confirm Password</label>
                     <input className="w-full p-2 rounded-lg outline-blue-500 text-black" type="password" name="confirmPassword"></input>
                 </div>
-                <button onClick={() => setSwitchForm(!switchForm)}>cd</button>
+                <div className="text-black mt-5 text-center">
+                    <button className="text-black" onClick={() => setSwitchForm(!switchForm)}>You have account? Sign In</button>
+                </div>
                 <button className="bg-orange-400 w-full p-3 mt-6 text-xl" type="submit">Register</button>
             </form>
             :
@@ -73,7 +75,9 @@ function Form(){
                     <label className="text-black">Password</label>
                     <input className="w-full p-2 rounded-lg outline-blue-500 text-black" type="password" name="password"></input>
                 </div>
-                <button onClick={() => setSwitchForm(!switchForm)}>av</button>
+                <div className="text-black mt-5 text-center">
+                    <button onClick={() => setSwitchForm(!switchForm)}>Don`t have account? Sign Up</button>
+                </div>
                 <button className="bg-orange-400 w-full p-3 mt-6 text-xl" type="submit">Log in</button>
             </form>
         }
