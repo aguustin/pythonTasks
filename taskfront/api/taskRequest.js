@@ -12,4 +12,4 @@ export const createTaskRequest = (data) => axios.post('http://127.0.0.1:8000/cre
 
 export const updateTaskRequest = (data) => axios.post('http://127.0.0.1:8000/update_tasks/', data)
 
-export const deleteTaskRequest = (taskId) => axios.delete(`http://127.0.0.1:8000/delete_tasks/${taskId}`)
+export const deleteTaskRequest = (taskId) => axios.delete(`http://127.0.0.1:8000/delete_tasks/${taskId}`) 

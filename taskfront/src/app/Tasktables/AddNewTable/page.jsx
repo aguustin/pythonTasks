@@ -12,8 +12,10 @@ function AddNewTable() {
     const {session} = useContext(UserContext)
     const {saveTableContext} = useContext(TasksContext)
     const [tableTitle, setTableTitle] = useState()
+    const [friends, setFriends] = useState([])
+    const [a, setA] = useState('')
     const [image, setImage] = useState(null)
-    const [color, setColor] = useState()
+    const [color, setColor] = useState('#ffaeae')
 
     const saveTable = async (e) => {
         e.preventDefault()
@@ -22,12 +24,6 @@ function AddNewTable() {
         formData.append('userId', session[0].id)
         formData.append('title', tableTitle)
         formData.append('table_color', color)
-
-       /* if(color === ''){
-            setColor('#595959')
-            console.log(color)
-            formData.append('table_color', color)
-        }*/
         
         if(image !== null){
             formData.append('table_image', image)
@@ -42,7 +38,16 @@ function AddNewTable() {
         e.preventDefault()
         setColor(color)
     }
+console.log(friends)
+    const addFriend = (e) => {
+        e.preventDefault()
+        setFriends([...friends, a])
+    }
 
+    console.log(a)
+/**  user_code_sender_id = data.get('userSenderId')
+        table_code_id = data.get('tableId')
+        user_receives_mail = data.get('userReceivesMail') */
     return(
         <section className="flex items-center justify-center">
             <Link href="/Tasktables" className='ac absolute left-20'><img src={backImg.src} alt=""></img></Link>
@@ -62,6 +67,11 @@ function AddNewTable() {
                     <button onClick={(e) => handleColorChange(e, '#F87171')} type="button" className="bg-red-400 w-12 h-12 mt-3"></button>
                     <button onClick={(e) => handleColorChange(e, '#F472B6')} type="button" className="bg-pink-400 w-12 h-12 mt-3"></button>
                     <button onClick={(e) => handleColorChange(e, '#FACC15')} type="button" className="bg-yellow-400 w-12 h-12 mt-3"></button>
+                </div>
+                <div className="share-with">
+                    <h3>share with:</h3>
+                    <input className="text-black" type="text" placeholder="friends mail" onChange={(e) => setA(e.target.value)}></input>
+                    <button className="text-black" type="button" onClick={(e) => addFriend(e)}>Add</button>
                 </div>
                 <div className='save-table flex'>
                     <button className='bg-orange-300 text-white mx-1 mt-4 flex items-center rounded-lg justify-center font-semibold text-2xl w-full' type="submit">
