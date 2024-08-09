@@ -1,5 +1,6 @@
 import json
 from django.http import HttpResponse, JsonResponse
+from django.views import View
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.shortcuts import get_object_or_404, render
 from requests import Response
@@ -50,9 +51,7 @@ class get_One_Table(ListView):
         return JsonResponse(list(serializer.data), safe=False)
 
 
-class Create_Tasks_Tables(CreateView):
-    model = User
-    model = TasksTable
+class Create_Tasks_Tables(View):
 
     def post(self, request):
         #data = json.loads(request.body)
@@ -60,14 +59,33 @@ class Create_Tasks_Tables(CreateView):
         user_id = request.POST.get('userId')
         title = request.POST.get('title')
         table_color = request.POST.get('table_color')
-        print('image: ', request.FILES.get('table_image'), ' color: ', table_color)
+        friends = request.POST.get('friends')
+        #friends_list = json.loads(friends)
         get_user_instance = User.objects.get(id=user_id)
         table_image = request.FILES.get('table_image')
-        save_tasks_table = TasksTable.objects.create(user_code=get_user_instance, title=title, table_image=table_image, table_color=table_color)
-        save_tasks_table.save()
-        get_new_table = TasksTable.objects.filter(id=save_tasks_table.id).values()
+       
+        if friends and friends != '[]':
+            save_tasks_table = TasksTable.objects.create(user_code=get_user_instance, title=title, table_image=table_image, table_color=table_color)
+            friends_list = json.loads(friends)
+            get_table_instance = TasksTable.objects.get(id=save_tasks_table.id)
 
-        return JsonResponse(list(get_new_table), safe=False)
+            for i in friends_list:
+                userExists = User.objects.get(mail=i)
+
+                if userExists:
+                   
+                    table_image.open()
+                    create_shared_table = Tables_And_Users.objects.create(user_code=get_user_instance, table_code=get_table_instance, table_image=table_image, table_color=table_color, shared_by=get_user_instance.mail, share_with=i)
+                    create_shared_table.save()
+                    print('shared table: ', create_shared_table)
+        else:
+            save_tasks_table = TasksTable.objects.create(user_code=get_user_instance, title=title, table_image=table_image, table_color=table_color)
+            save_tasks_table.save()
+            get_new_table = TasksTable.objects.filter(id=save_tasks_table.id).values()
+            return JsonResponse(list(get_new_table), safe=False) 
+        
+        #TasksTable.objects.filter(id=save_tasks_table.id).delete()
+        return HttpResponse(200)
     
 
 class Update_Tasks_Table(UpdateView):
@@ -183,8 +201,11 @@ class Get_Shared_tables(ListView):
     def get(self, request, *args, **kwargs):
         user_code = kwargs['userId']
         get_user_mail = User.objects.get(id=user_code)
-        print(get_user_mail.id)
         get_shared_tables = Tables_And_Users.objects.filter(share_with=get_user_mail.mail)
-        serialize = Tables_And_Users_Serializer(get_shared_tables, many=True)
-
-        return JsonResponse(list(serialize.data), safe=False)
+        if get_shared_tables:
+            serialize = Tables_And_Users_Serializer(get_shared_tables, many=True)
+            return JsonResponse(list(serialize.data), safe=False)
+        else:
+            get_shared_tables = Tables_And_Users.objects.filter(shared_by=get_user_mail.mail)
+            serialize = Tables_And_Users_Serializer(get_shared_tables, many=True)
+            return JsonResponse(list(serialize.data), safe=False)

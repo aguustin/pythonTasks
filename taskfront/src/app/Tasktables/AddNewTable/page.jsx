@@ -13,7 +13,7 @@ function AddNewTable() {
     const {saveTableContext} = useContext(TasksContext)
     const [tableTitle, setTableTitle] = useState()
     const [friends, setFriends] = useState([])
-    const [a, setA] = useState('')
+    const [a, setA] = useState() //agregado al final
     const [image, setImage] = useState(null)
     const [color, setColor] = useState('#ffaeae')
 
@@ -28,7 +28,8 @@ function AddNewTable() {
         if(image !== null){
             formData.append('table_image', image)
         }
-        
+        const friendsJSON = JSON.stringify(friends);
+        formData.append('friends', friendsJSON)
         await saveTableContext(formData)
         router.push('/Tasktables')
     }
@@ -38,13 +39,15 @@ function AddNewTable() {
         e.preventDefault()
         setColor(color)
     }
-console.log(friends)
+
+    console.log(friends) //agregado al final
     const addFriend = (e) => {
         e.preventDefault()
-        setFriends([...friends, a])
+        
+        console.log(a)
+        setFriends([...friends,a])
     }
 
-    console.log(a)
 /**  user_code_sender_id = data.get('userSenderId')
         table_code_id = data.get('tableId')
         user_receives_mail = data.get('userReceivesMail') */

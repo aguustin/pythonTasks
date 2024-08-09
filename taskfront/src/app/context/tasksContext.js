@@ -1,14 +1,19 @@
 "use client"
 
+import { useRouter } from "next/navigation";
 import { getTableRequest, saveTableRequest, createTaskRequest, updateTableRequest, updateTaskRequest, deleteTaskRequest } from "../../../api/taskRequest";
+import UserContext from "./userContext";
 
-const { createContext, useState, useEffect} = require("react");
+const { createContext, useState, useEffect, useContext} = require("react");
 
 const TasksContext = createContext()
 
 export const TasksContextProvider = ({children}) => {
     const [tables, setTables] = useState()
     const [tasks, setTasks] = useState([])
+    const router = useRouter()
+   // const {sharedT, setSharedT} = useContext(UserContext)
+    
 
     const getTableContext = async (tableId) => {
         const res = await getTableRequest(tableId)
@@ -17,7 +22,12 @@ export const TasksContextProvider = ({children}) => {
 
     const saveTableContext = async (data) => {
         const res = await saveTableRequest(data)
-        setTables([...tables, ...res.data])
+
+        if(res.data === 200){
+            router.push('/Tasktables')
+        }else{
+            setTables([...tables, ...res.data])
+        }
     }
 
     const updateTableContext = (taskTableId, tableTitle) => {

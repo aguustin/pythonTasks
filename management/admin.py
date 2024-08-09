@@ -31,6 +31,8 @@ class TablesAndUsersAdmin(admin.ModelAdmin):
     list_display = [
         'user_code',
         'table_code',
+        'table_image',
+        'table_color',
         'shared_by',
         'share_with'
     ]
