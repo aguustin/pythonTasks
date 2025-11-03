@@ -9,7 +9,7 @@ from requests import Response
 from tasksManager.serializer import Tasks_Tables_Serializer
 from user.models import User
 from management.models import TasksTable
-
+from django.views import View
 # Create your views here.
 
 
@@ -54,30 +54,40 @@ class Create_User(CreateView):
             return HttpResponse(200)
         
 
-
-class Get_Credentials(ListView):
-    model = User
-    model = TasksTable
+class Get_Credentials(View):
 
     def get(self, request, *args, **kwargs):
-        #data = json.loads(request.body)
-        user_mail = kwargs['mail']
-        get_password = kwargs['password']
-        get_user = list(User.objects.filter(mail=user_mail).values())
-        print("dasdasdasdasdsad: ", get_user)
-        user_data = get_user[0]
-        get_pass = user_data['password']
-        #encoded_pass = bytes(password, 'UTF-8')
-        #check_pass = check_password(get_password, get_pass) no funciona bien
-        
-        #if check_pass:
-        
-        get_user_table_instance = TasksTable.objects.filter(user_code=user_data['id'])
-        serializer = Tasks_Tables_Serializer(get_user_table_instance, many=True)
-        print(serializer.data)
-        return JsonResponse(get_user + serializer.data, safe=False)
-        #else:
-        return HttpResponse(200)
+        user_mail = kwargs.get('mail')
+        get_password = kwargs.get('password')
+
+        # Buscar el usuario
+        try:
+            user_data = User.objects.get(mail=user_mail)
+        except User.DoesNotExist:
+            return HttpResponse('Usuario no encontrado', status=404)
+
+        stored_password = user_data.password
+        # bcrypt espera bytes
+        if isinstance(stored_password, str):
+            stored_password = stored_password.encode('utf-8')
+
+        # Verificar contraseña
+        if bcrypt.checkpw(get_password.encode('utf-8'), stored_password):
+            # Obtener las tareas del usuario
+            tasks = TasksTable.objects.filter(user_code=user_data.id)
+            serializer = Tasks_Tables_Serializer(tasks, many=True)
+
+            return JsonResponse({
+                'user': {
+                    'id': user_data.id,
+                    'mail': user_data.mail,
+                    'username': user_data.username
+                },
+                'tasks': serializer.data
+            }, safe=False)
+        else:
+            return HttpResponse('Contraseña incorrecta', status=401)
+
     
 
 
