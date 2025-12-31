@@ -21,7 +21,7 @@ function AddNewTable() {
         e.preventDefault()
         const formData = new FormData()
 
-        formData.append('userId', session[0].id)
+        formData.append('userId', session?.user?.id)
         formData.append('title', tableTitle)
         formData.append('table_color', color)
         

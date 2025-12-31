@@ -31,6 +31,7 @@ class Create_User(CreateView):
 
         #request por JSON
 
+        print('entro')
         data = json.loads(request.body)
         mail = data.get('mail')
         username = data.get('username')
@@ -38,16 +39,18 @@ class Create_User(CreateView):
         confirm_password = data.get('confirmPassword')
         check_if_exists = User.objects.filter(mail=mail)
 
-        print(password, ' ', confirm_password)
 
         if check_if_exists:
+            print("existe")
             return HttpResponse(200)
         elif password != confirm_password:
+            print("passwords diferentes")
             return HttpResponse(200)
         else:
-            encoded_pass = bytes(password, 'UTF-8')
+            
+            encoded_pass = password.encode('utf-8')
             salt = bcrypt.gensalt()
-            hashed_pass = bcrypt.hashpw(encoded_pass, salt)
+            hashed_pass = bcrypt.hashpw(encoded_pass, salt).decode()
             save_user = User.objects.create(mail=mail, username=username, password=hashed_pass)
             save_user.save()
 
@@ -61,19 +64,16 @@ class Get_Credentials(View):
         get_password = kwargs.get('password')
 
         # Buscar el usuario
-        try:
-            user_data = User.objects.get(mail=user_mail)
-        except User.DoesNotExist:
-            return HttpResponse('Usuario no encontrado', status=404)
-
-        stored_password = user_data.password
-        # bcrypt espera bytes
-        if isinstance(stored_password, str):
-            stored_password = stored_password.encode('utf-8')
-
+        
+        user_data = User.objects.filter(mail=user_mail).first()
+        if user_data:
+            print(type(user_data.password))
+            stored_password = user_data.password
         # Verificar contraseña
-        if bcrypt.checkpw(get_password.encode('utf-8'), stored_password):
+            
+        if bcrypt.checkpw(get_password.encode('utf-8'), stored_password.encode('utf-8')):
             # Obtener las tareas del usuario
+            
             tasks = TasksTable.objects.filter(user_code=user_data.id)
             serializer = Tasks_Tables_Serializer(tasks, many=True)
 

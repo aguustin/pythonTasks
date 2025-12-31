@@ -110,4 +110,8 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 # -----------------------------
 # CORS (permitir que el frontend consuma la API)
 # -----------------------------
-CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', 'https://pythontasks-front.onrender.com').split(',')
+CORS_ALLOWED_ORIGINS =  [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://localhost:8000'
+]

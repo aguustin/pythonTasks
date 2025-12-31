@@ -18,11 +18,12 @@ export const UserContextProvider = ({children}) => {
       
     useEffect(() => {
         if(session){
-                const sessionId = session[0].id
+            
+                const sessionId = session?.user?.id
                 fetch(`http://127.0.0.1:8000/get_user_tables/${sessionId}`)
                 .then((res) => res.json())
                 .then((json) => setTables(json))
-                fetch(`http://127.0.0.1:8000/get_shared_tables/${session[0]?.id}`)
+                fetch(`http://127.0.0.1:8000/get_shared_tables/${sessionId}`)
                 .then((res) => res.json())
                 .then((json) => setSharedT(json)) 
         }

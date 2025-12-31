@@ -46,11 +46,11 @@ function Form(){
             <form className="forms shadow-lg w-96 mx-auto p-4 mt-40" onSubmit={(e) => signIn(e)}>
                 <div className="form-group">
                     <label className="text-black">Username</label>
-                    <input className="w-full p-2 rounded-lg outline-blue-500 text-black" name="username"></input>
+                    <input type="text" className="w-full p-2 rounded-lg outline-blue-500 text-black" name="username"></input>
                 </div>
                 <div className="form-group">
                     <label className="text-black">Mail</label>
-                    <input className="w-full p-2 rounded-lg outline-blue-500 text-black" name="mail"></input>
+                    <input type="email" className="w-full p-2 rounded-lg outline-blue-500 text-black" name="mail"></input>
                 </div>
                 <div className="form-group">
                     <label className="text-black">Password</label>
