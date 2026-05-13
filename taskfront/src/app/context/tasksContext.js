@@ -1,61 +1,85 @@
 "use client"
 
-import { useRouter } from "next/navigation";
-import { getTableRequest, saveTableRequest, createTaskRequest, updateTableRequest, updateTaskRequest, deleteTaskRequest } from "../../../api/taskRequest";
-import UserContext from "./userContext";
-
-const { createContext, useState, useEffect, useContext} = require("react");
+import { createContext, useState } from "react"
+import { useRouter } from "next/navigation"
+import {
+    getTableByIdRequest,
+    saveTableRequest,
+    createTaskRequest,
+    updateTableRequest,
+    updateTaskRequest,
+    deleteTaskRequest,
+    deleteTableRequest,
+} from "../../../api/taskRequest"
 
 const TasksContext = createContext()
 
-export const TasksContextProvider = ({children}) => {
-    const [tables, setTables] = useState()
+export const TasksContextProvider = ({ children }) => {
+    const [tables, setTables] = useState([])
     const [tasks, setTasks] = useState([])
     const router = useRouter()
-   // const {sharedT, setSharedT} = useContext(UserContext)
-    
 
     const getTableContext = async (tableId) => {
-        const res = await getTableRequest(tableId)
+        const res = await getTableByIdRequest(tableId)
         setTables(res.data)
     }
 
     const saveTableContext = async (data) => {
         const res = await saveTableRequest(data)
-
-        if(res.data === 200){
-            router.push('/Tasktables')
-        }else{
-            setTables([...tables, ...res.data])
+        // res.data es el array con la nueva tabla creada
+        if (Array.isArray(res.data)) {
+            setTables(prev => [...(prev || []), ...res.data])
         }
+        router.push('/Tasktables')
     }
 
-    const updateTableContext = (taskTableId, tableTitle) => {
-        console.log(taskTableId, " ", tableTitle)
-        updateTableRequest(taskTableId, tableTitle)
-        location.reload()
+    const updateTableContext = async (taskTableId, tableTitle) => {
+        await updateTableRequest(taskTableId, tableTitle)
+        setTables(prev =>
+            prev?.map(t => t.id === taskTableId ? { ...t, title: tableTitle } : t)
+        )
     }
 
     const createTaskContext = async (data) => {
         const res = await createTaskRequest(data)
-        console.log("res: ", res)
-        setTasks([...tasks, res.data])
+        setTasks(prev => [...prev, res.data])
     }
 
-    const updateTaskContext = (data) => {
-        updateTaskRequest(data)
-        console.log("t: ", data)
-        setTasks(tasks.map((updateTask) => updateTask.id === data.taskId ? {...updateTask, title: data.title, description: data.description, imageType: data.imageType, state: data.state} : updateTask))  //updatear esto en tiempo real
+    const updateTaskContext = async (data) => {
+        await updateTaskRequest(data)
+        setTasks(prev =>
+            prev.map(t =>
+                t.id === data.taskId
+                    ? { ...t, title: data.title, description: data.description, imageType: data.imageType, state: data.state, due_date: data.due_date ?? t.due_date }
+                    : t
+            )
+        )
     }
 
-    const deleteTaskContext = (taskId) => {
-        console.log("deleting")
-        deleteTaskRequest(taskId)
-        location.reload()
+    const deleteTaskContext = async (taskId) => {
+        await deleteTaskRequest(taskId)
+        setTasks(prev => prev.filter(t => t.id !== taskId))
     }
 
-    return(
-        <TasksContext.Provider value={{tasks, setTasks, tables, setTables, getTableContext, saveTableContext, updateTableContext, createTaskContext, updateTaskContext, deleteTaskContext }}>{children}</TasksContext.Provider>
+    const deleteTableContext = async (tableId) => {
+        await deleteTableRequest(tableId)
+        setTables(prev => prev.filter(t => t.id !== tableId))
+    }
+
+    return (
+        <TasksContext.Provider value={{
+            tasks, setTasks,
+            tables, setTables,
+            getTableContext,
+            saveTableContext,
+            updateTableContext,
+            deleteTableContext,
+            createTaskContext,
+            updateTaskContext,
+            deleteTaskContext,
+        }}>
+            {children}
+        </TasksContext.Provider>
     )
 }
 

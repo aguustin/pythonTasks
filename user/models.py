@@ -4,9 +4,9 @@ from django.forms import model_to_dict
 # Create your models here.
 
 class User(models.Model):
-    mail = models.EmailField(max_length= 50, default="")
-    username = models.CharField(max_length= 50, default="")
-    password = models.CharField(max_length= 50, default="")
+    mail = models.EmailField(max_length= 300, default="")
+    username = models.CharField(max_length= 300, default="")
+    password = models.CharField(max_length= 300, default="")
 
     def __str__(self):
         return str(self.id)

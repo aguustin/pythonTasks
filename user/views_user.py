@@ -1,94 +1,103 @@
-
 import json
 import bcrypt
-from django.contrib.auth.hashers import check_password
 from django.http import HttpResponse, JsonResponse
-from django.shortcuts import render
-from django.views.generic import CreateView, ListView, DeleteView
-from requests import Response
+from django.views.generic import ListView, DeleteView
+from rest_framework_simplejwt.tokens import RefreshToken
 from tasksManager.serializer import Tasks_Tables_Serializer
 from user.models import User
 from management.models import TasksTable
 from django.views import View
-# Create your views here.
+
+
+def _make_tokens(user_id):
+    refresh = RefreshToken()
+    refresh['user_id'] = user_id
+    return {'access': str(refresh.access_token), 'refresh': str(refresh)}
 
 
 class Get_Users(ListView):
     model = User
 
     def get(self, request, *args, **kwargs):
-        all_users = User.objects.all().values()
+        all_users = User.objects.all().values('id', 'mail', 'username')
         return JsonResponse(list(all_users), safe=False)
 
-class Create_User(CreateView):
-    model = User
+
+class Create_User(View):
 
     def post(self, request, *args, **kwargs):
-        #request por postman
-        #mail = request.POST.get('mail')
-        #password = request.POST.get('password')
-        #confirm_password = request.POST.get('confirm_password')
+        try:
+            data = json.loads(request.body)
+            mail = data.get('mail', '').strip()
+            username = data.get('username', '').strip()
+            password = data.get('password', '')
+            confirm_password = data.get('confirmPassword', '')
 
-        #request por JSON
+            if not all([mail, username, password, confirm_password]):
+                return JsonResponse({'error': 'Todos los campos son requeridos'}, status=400)
 
-        data = json.loads(request.body)
-        mail = data.get('mail')
-        username = data.get('username')
-        password = data.get('password') 
-        confirm_password = data.get('confirmPassword')
-        check_if_exists = User.objects.filter(mail=mail)
+            if len(password) < 6:
+                return JsonResponse({'error': 'La contraseña debe tener al menos 6 caracteres'}, status=400)
 
-        print(password, ' ', confirm_password)
+            if User.objects.filter(mail=mail).exists():
+                return JsonResponse({'error': 'El mail ya está registrado'}, status=409)
 
-        if check_if_exists:
-            return HttpResponse(200)
-        elif password != confirm_password:
-            return HttpResponse(200)
-        else:
-            encoded_pass = bytes(password, 'UTF-8')
+            if password != confirm_password:
+                return JsonResponse({'error': 'Las contraseñas no coinciden'}, status=400)
+
             salt = bcrypt.gensalt()
-            hashed_pass = bcrypt.hashpw(encoded_pass, salt)
-            save_user = User.objects.create(mail=mail, username=username, password=hashed_pass)
-            save_user.save()
+            hashed_pass = bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
 
-            return HttpResponse(200)
-        
+            User.objects.create(mail=mail, username=username, password=hashed_pass)
+            return JsonResponse({'message': 'Usuario creado correctamente'}, status=201)
+
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'JSON inválido'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': 'Error interno del servidor'}, status=500)
+
 
 class Get_Credentials(View):
+    """Login: recibe mail y password via POST body — nunca en URL."""
 
-    def get(self, request, *args, **kwargs):
-        user_mail = kwargs.get('mail')
-        get_password = kwargs.get('password')
-
-        # Buscar el usuario
+    def post(self, request, *args, **kwargs):
         try:
-            user_data = User.objects.get(mail=user_mail)
-        except User.DoesNotExist:
-            return HttpResponse('Usuario no encontrado', status=404)
+            data = json.loads(request.body)
+            user_mail = data.get('mail', '').strip()
+            get_password = data.get('password', '')
 
-        stored_password = user_data.password
-        # bcrypt espera bytes
-        if isinstance(stored_password, str):
-            stored_password = stored_password.encode('utf-8')
+            if not user_mail or not get_password:
+                return JsonResponse({'error': 'Credenciales requeridas'}, status=400)
 
-        # Verificar contraseña
-        if bcrypt.checkpw(get_password.encode('utf-8'), stored_password):
-            # Obtener las tareas del usuario
-            tasks = TasksTable.objects.filter(user_code=user_data.id)
-            serializer = Tasks_Tables_Serializer(tasks, many=True)
+            get_user = list(User.objects.filter(mail=user_mail).values())
+
+            if not get_user:
+                return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
+
+            user_data = get_user[0]
+
+            if not bcrypt.checkpw(get_password.encode(), user_data['password'].encode()):
+                return JsonResponse({'error': 'Contraseña incorrecta'}, status=401)
+
+            user_response = {
+                'id': user_data['id'],
+                'mail': user_data['mail'],
+                'username': user_data['username'],
+            }
+
+            tables_qs = TasksTable.objects.filter(user_code=user_data['id'])
+            serializer = Tasks_Tables_Serializer(tables_qs, many=True)
 
             return JsonResponse({
-                'user': {
-                    'id': user_data.id,
-                    'mail': user_data.mail,
-                    'username': user_data.username
-                },
-                'tasks': serializer.data
+                'user': user_response,
+                'tables': list(serializer.data),
+                'tokens': _make_tokens(user_data['id']),
             }, safe=False)
-        else:
-            return HttpResponse('Contraseña incorrecta', status=401)
 
-    
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'JSON inválido'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': 'Error interno del servidor'}, status=500)
 
 
 class Delete_User(DeleteView):
@@ -97,7 +106,4 @@ class Delete_User(DeleteView):
     def delete(self, request, *args, **kwargs):
         user_id = kwargs['id']
         User.objects.filter(id=user_id).delete()
-        return HttpResponse(200)
-    
-
-#hacer una view de olvide mi contraseña
+        return HttpResponse(status=200)

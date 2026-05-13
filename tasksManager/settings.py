@@ -1,8 +1,9 @@
 import os
 from pathlib import Path
+from datetime import timedelta
 import dj_database_url
-import cloudinary
-import cloudinary_storage
+from dotenv import load_dotenv
+load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -11,17 +12,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # -----------------------------
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'unsafe-default-key')
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
-
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '127.0.0.1').split(',')
 # -----------------------------
 # Cloudinary (subida de imágenes)
 # -----------------------------
-cloudinary.config(
-    cloud_name=os.environ.get('CLOUD_NAME', 'drmcrdf4r'),
-    api_key=os.environ.get('CLOUD_API_KEY', '521116467426574'),
-    api_secret=os.environ.get('CLOUD_API_SECRET', 'IyZYzTmTrxIpuEHp04kZ6lWk40g'),
-    secure=True
-)
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': os.environ.get('CLOUD_NAME'),
+    'API_KEY': os.environ.get('CLOUD_API_KEY'),
+    'API_SECRET': os.environ.get('CLOUD_API_SECRET'),
+}
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
 # -----------------------------
@@ -46,6 +45,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
+    'tasksManager.jwt_middleware.JWTAuthMiddleware',  # después de CORS para que OPTIONS pasen sin auth
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -76,10 +76,12 @@ WSGI_APPLICATION = 'tasksManager.wsgi.application'
 # -----------------------------
 # Base de datos (PostgreSQL en Render)
 # -----------------------------
+_DATABASE_URL = os.environ.get('DATABASE_URL')
 DATABASES = {
     'default': dj_database_url.config(
-        default=f'sqlite:///{BASE_DIR}/db.sqlite3',  # fallback local
-        conn_max_age=600
+        default=f'sqlite:///{BASE_DIR}/db.sqlite3',
+        conn_max_age=600,
+        ssl_require=bool(_DATABASE_URL),  # SSL solo para PostgreSQL remoto
     )
 }
 
@@ -110,4 +112,16 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 # -----------------------------
 # CORS (permitir que el frontend consuma la API)
 # -----------------------------
-CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', 'https://pythontasks-front.onrender.com').split(',')
+CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',')
+
+# -----------------------------
+# JWT
+# -----------------------------
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,      # cada refresh emite un nuevo refresh token
+    'BLACKLIST_AFTER_ROTATION': False,  # requeriría la app blacklist instalada
+    'USER_ID_CLAIM': 'user_id',
+    'AUTH_HEADER_TYPES': ('Bearer',),
+}

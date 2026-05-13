@@ -1,7 +1,11 @@
-import axios from "axios";
+import axios from 'axios'
+import api from './axiosConfig'
 
-export const signInRequest = async (data) => await axios.post(`${process.env.NEXT_PUBLIC_BACK_URL}/create_user/`, data)
+const API = process.env.NEXT_PUBLIC_BACK_URL
 
-export const logInRequest = async (mail, password) => await axios.get(`${process.env.NEXT_PUBLIC_BACK_URL}/get_credentials/${mail}/${password}`)
+// Endpoints públicos — usan axios directo (sin token)
+export const signInRequest = (data)             => axios.post(`${API}/create_user/`, data)
+export const logInRequest  = (mail, password)   => axios.post(`${API}/get_credentials/`, { mail, password })
 
-export const deleteRequest = async (userId) => await axios.delete(`${process.env.NEXT_PUBLIC_BACK_URL}/delete_user/${userId}`)
+// Endpoints protegidos — usan la instancia autenticada
+export const deleteRequest = (userId) => api.delete(`/delete_user/${userId}/`)

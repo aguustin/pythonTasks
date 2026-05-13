@@ -1,15 +1,19 @@
-import axios from "axios";
+import api from './axiosConfig'
 
-export const getUserTablesRequest = (sessionId) => axios.get(`${process.env.NEXT_PUBLIC_BACK_URL}/get_user_tables/${sessionId}`)
+// Tablas
+export const getUserTablesRequest = (sessionId)   => api.get(`/get_user_tables/${sessionId}/`)
+export const getTableByIdRequest  = (tableId)     => api.get(`/get_table/${tableId}/`)
+export const getTasksForTable     = (tableId)     => api.get(`/get_one_table/${tableId}/`)
+export const saveTableRequest     = (data)        => api.post('/create_tasks_tables/', data)
+export const updateTableRequest   = (id, title)   => api.post('/update_tasks_table/', { taskTableId: id, tableTitle: title })
+export const deleteTableRequest   = (tableId)     => api.delete(`/delete_tasks_table/${tableId}/`)
 
-export const getTableRequest = (tableId) => axios.get(`${process.env.NEXT_PUBLIC_BACK_URL}/get_table/${tableId}`)
+// Tareas
+export const createTaskRequest  = (data)    => api.post('/create_task/', data)
+export const updateTaskRequest  = (data)    => api.post('/update_tasks/', data)
+export const deleteTaskRequest  = (taskId)  => api.delete(`/delete_tasks/${taskId}/`)
 
-export const saveTableRequest = (data) => axios.post(`${process.env.NEXT_PUBLIC_BACK_URL}/create_tasks_tables/`, data)
-
-export const updateTableRequest = (taskTableId, tableTitle) => axios.post(`${process.env.NEXT_PUBLIC_BACK_URL}/update_tasks_table/`, {taskTableId, tableTitle})
-
-export const createTaskRequest = (data) => axios.post(`${process.env.NEXT_PUBLIC_BACK_URL}/create_task/`, data)
-
-export const updateTaskRequest = (data) => axios.post(`${process.env.NEXT_PUBLIC_BACK_URL}/update_tasks/`, data)
-
-export const deleteTaskRequest = (taskId) => axios.delete(`${process.env.NEXT_PUBLIC_BACK_URL}/delete_tasks/${taskId}`) 
+// Comentarios
+export const getCommentsRequest    = (taskId)     => api.get(`/get_comments/${taskId}/`)
+export const createCommentRequest  = (data)       => api.post('/create_comment/', data)
+export const deleteCommentRequest  = (commentId)  => api.delete(`/delete_comment/${commentId}/`)
