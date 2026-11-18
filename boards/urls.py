@@ -1,0 +1,27 @@
+from django.urls import path
+from rest_framework.routers import SimpleRouter
+
+from boards import views
+
+router = SimpleRouter()
+router.register('boards', views.BoardViewSet, basename='board')
+router.register('tasks', views.TaskViewSet, basename='task')
+router.register('comments', views.CommentViewSet, basename='comment')
+
+columns_list = views.ColumnViewSet.as_view({'get': 'list', 'post': 'create'})
+columns_detail = views.ColumnViewSet.as_view({'patch': 'partial_update', 'delete': 'destroy'})
+columns_reorder = views.ColumnViewSet.as_view({'post': 'reorder'})
+members_list = views.BoardMemberViewSet.as_view({'get': 'list', 'post': 'create'})
+members_detail = views.BoardMemberViewSet.as_view({'patch': 'partial_update', 'delete': 'destroy'})
+
+urlpatterns = router.urls + [
+    path('boards/<int:board_pk>/columns/', columns_list, name='board-columns'),
+    path('boards/<int:board_pk>/columns/reorder/', columns_reorder, name='board-columns-reorder'),
+    path('boards/<int:board_pk>/columns/<int:pk>/', columns_detail, name='board-column-detail'),
+    path('boards/<int:board_pk>/members/', members_list, name='board-members'),
+    path('boards/<int:board_pk>/members/<int:pk>/', members_detail, name='board-member-detail'),
+    path('boards/<int:board_pk>/tasks/', views.BoardTaskListView.as_view(), name='board-tasks'),
+    path('boards/<int:board_pk>/activity/', views.BoardActivityView.as_view(), name='board-activity'),
+    path('tasks/<int:task_pk>/comments/', views.TaskCommentListView.as_view(), name='task-comments'),
+    path('my-tasks/', views.MyTasksView.as_view(), name='my-tasks'),
+]
