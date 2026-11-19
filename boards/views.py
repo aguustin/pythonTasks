@@ -1,19 +1,29 @@
-from django.db.models import Case, Count, F, IntegerField, Value, When
+from datetime import timedelta
+
+from django.db.models import Case, Count, Exists, F, IntegerField, OuterRef, Q, Value, When
 from django.utils import timezone
 from rest_framework import generics, mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
+from rest_framework.permissions import SAFE_METHODS
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from boards import services
-from boards.access import RoleCache, get_board_or_404, has_role, require_board_role, visible_boards
+from boards.access import (
+    RoleCache,
+    access_impact,
+    get_board_or_404,
+    has_role,
+    require_board_role,
+    require_writable,
+    visible_boards,
+)
 from boards.filters import filter_tasks
-from boards.models import Activity, BoardMember, BoardRole, Column, Comment, Priority, Task
-
-# De más urgente a menos urgente (para ordenar "Mis tareas").
-PRIORITY_ORDER = [Priority.URGENT, Priority.HIGH, Priority.MEDIUM, Priority.LOW]
+from boards.models import Activity, Board, BoardMember, BoardRole, Column, Comment, Priority, ProjectFavorite, Task
 from boards.serializers import (
+    AccessPreviewSerializer,
     ActivitySerializer,
     BoardDetailSerializer,
     BoardMemberSerializer,
@@ -25,6 +35,26 @@ from boards.serializers import (
     TaskSummarySerializer,
 )
 from workspaces.access import require_membership
+
+# De más urgente a menos urgente (para ordenar "Mis tareas" e Inicio).
+PRIORITY_ORDER = [Priority.URGENT, Priority.HIGH, Priority.MEDIUM, Priority.LOW]
+PRIORITY_RANK = Case(
+    *[When(priority=p, then=Value(i)) for i, p in enumerate(PRIORITY_ORDER)],
+    default=Value(len(PRIORITY_ORDER)),
+    output_field=IntegerField(),
+)
+
+
+def with_progress(boards, today=None):
+    """Anota avance: total de tareas, terminadas y vencidas (sin terminar y con fecha pasada)."""
+    today = today or timezone.localdate()
+    return boards.annotate(
+        tasks_total=Count('tasks', distinct=True),
+        tasks_done=Count('tasks', filter=Q(tasks__column__is_done=True), distinct=True),
+        tasks_overdue=Count(
+            'tasks', filter=Q(tasks__due_date__lt=today, tasks__column__is_done=False), distinct=True
+        ),
+    )
 
 
 def tasks_queryset():
@@ -39,9 +69,12 @@ def tasks_queryset():
 
 class BoardViewSet(viewsets.ModelViewSet):
     """
-    GET  /boards/?organization=<id>   tableros visibles
+    GET  /boards/?organization=<id>[&archived=true]   proyectos visibles (sin archivados por defecto)
     POST /boards/                     crear (cualquier miembro de la organización)
-    GET/PATCH/DELETE /boards/<id>/    ver (lector) / editar y borrar (admin)
+    GET/PATCH/DELETE /boards/<id>/    ver (lector) / editar y borrar (líder = admin)
+    POST /boards/<id>/archive/ · /restore/            archivar / restaurar (líder)
+    POST|DELETE /boards/<id>/favorite/                marcar / desmarcar favorito (lector)
+    POST /boards/<id>/access-preview/                 a quién dejaría sin acceso un cambio (líder)
     """
 
     parser_classes = [JSONParser, MultiPartParser, FormParser]
@@ -58,28 +91,81 @@ class BoardViewSet(viewsets.ModelViewSet):
         return ctx
 
     def get_queryset(self):
-        qs = visible_boards(self.request.user).select_related('organization', 'created_by')
+        user = self.request.user
+        qs = with_progress(visible_boards(user)).select_related('organization', 'created_by').annotate(
+            is_favorite=Exists(ProjectFavorite.objects.filter(board=OuterRef('pk'), user=user))
+        )
         org = self.request.query_params.get('organization')
         if org:
             qs = qs.filter(organization_id=org)
+        if self.action == 'list':
+            archived = self.request.query_params.get('archived') == 'true'
+            qs = qs.filter(archived_at__isnull=not archived)
         if self.action == 'retrieve':
             qs = qs.prefetch_related('columns')
         return qs
 
+    def _fresh(self, board):
+        return self.get_queryset().get(pk=board.pk)
+
     def perform_create(self, serializer):
         org = serializer.validated_data.pop('organization')
         require_membership(self.request.user, org.pk)
-        serializer.instance = services.create_board(self.request.user, org, **serializer.validated_data)
+        board = services.create_board(self.request.user, org, **serializer.validated_data)
+        serializer.instance = self._fresh(board)
 
     def perform_update(self, serializer):
-        require_board_role(self.request.user, serializer.instance, BoardRole.ADMIN)
+        board = serializer.instance
+        require_board_role(self.request.user, board, BoardRole.ADMIN)
+        require_writable(board)
+        old_visibility = board.visibility
         board = serializer.save()
         services.log(board, self.request.user, Activity.Verb.BOARD_UPDATED,
                      fields=sorted(serializer.validated_data.keys()))
+        if board.visibility != old_visibility:
+            services.prune_assignees(board, self.request.user)  # D18
+        serializer.instance = self._fresh(board)
 
     def perform_destroy(self, instance):
         require_board_role(self.request.user, instance, BoardRole.ADMIN)
         instance.delete()
+
+    @action(detail=True, methods=['post'])
+    def archive(self, request, pk=None):
+        board = self.get_object()
+        require_board_role(request.user, board, BoardRole.ADMIN)
+        services.archive_board(board, request.user)
+        return Response(BoardSerializer(self._fresh(board), context=self.get_serializer_context()).data)
+
+    @action(detail=True, methods=['post'])
+    def restore(self, request, pk=None):
+        board = self.get_object()
+        require_board_role(request.user, board, BoardRole.ADMIN)
+        services.restore_board(board, request.user)
+        return Response(BoardSerializer(self._fresh(board), context=self.get_serializer_context()).data)
+
+    @action(detail=True, methods=['post', 'delete'])
+    def favorite(self, request, pk=None):
+        board = self.get_object()
+        if request.method == 'POST':
+            ProjectFavorite.objects.get_or_create(user=request.user, board=board)
+        else:
+            ProjectFavorite.objects.filter(user=request.user, board=board).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=['post'], url_path='access-preview')
+    def access_preview(self, request, pk=None):
+        """No cambia nada: informa qué responsables perderían el acceso (para avisar antes)."""
+        board = self.get_object()
+        require_board_role(request.user, board, BoardRole.ADMIN)
+        serializer = AccessPreviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        affected = services.describe_impact(access_impact(
+            board,
+            visibility=serializer.validated_data.get('visibility'),
+            remove_user_ids=serializer.validated_data['remove_user_ids'],
+        ))
+        return Response({'affected': affected, 'tasks': sum(a['tasks'] for a in affected)})
 
 
 class BoardScopedMixin:
@@ -88,6 +174,8 @@ class BoardScopedMixin:
     def initial(self, request, *args, **kwargs):
         super().initial(request, *args, **kwargs)
         self.board, self.role = get_board_or_404(request.user, kwargs['board_pk'])
+        if request.method not in SAFE_METHODS:
+            require_writable(self.board)
 
     def get_serializer_context(self):
         ctx = super().get_serializer_context()
@@ -126,6 +214,7 @@ class BoardMemberViewSet(BoardScopedMixin, viewsets.ModelViewSet):
         name = instance.user.full_name
         instance.delete()
         services.log(self.board, self.request.user, Activity.Verb.MEMBER_REMOVED, user=name)
+        services.prune_assignees(self.board, self.request.user)  # D18
 
 
 class BoardActivityView(BoardScopedMixin, generics.ListAPIView):
@@ -134,7 +223,13 @@ class BoardActivityView(BoardScopedMixin, generics.ListAPIView):
     serializer_class = ActivitySerializer
 
     def get_queryset(self):
-        return Activity.objects.filter(board=self.board).select_related('actor')
+        qs = Activity.objects.filter(board=self.board).select_related('actor', 'board')
+        task = self.request.query_params.get('task')
+        if task:
+            if not task.isdigit():
+                raise ValidationError({'task': 'Debe ser un número.'})
+            qs = qs.filter(task_id=task)
+        return qs
 
 
 # ── Columnas ────────────────────────────────────────────────────────────────
@@ -227,6 +322,8 @@ class TaskViewSet(
     def get_object(self):
         task = super().get_object()
         self.role = require_board_role(self.request.user, task.board)
+        if self.request.method not in SAFE_METHODS:
+            require_writable(task.board)
         return task
 
     def get_serializer_context(self):
@@ -286,19 +383,16 @@ class MyTasksView(generics.ListAPIView):
         user = self.request.user
         params = self.request.query_params.copy()
         params.setdefault('status', 'open')
-        qs = tasks_queryset().filter(assignees=user, board__in=visible_boards(user))
+        qs = tasks_queryset().filter(
+            assignees=user, board__in=visible_boards(user), board__archived_at__isnull=True
+        )
         org = params.get('organization')
         if org:
             qs = qs.filter(board__organization_id=org)
         params.pop('assignee', None)
-        priority_rank = Case(
-            *[When(priority=p, then=Value(i)) for i, p in enumerate(PRIORITY_ORDER)],
-            default=Value(len(PRIORITY_ORDER)),
-            output_field=IntegerField(),
-        )
         return (
             filter_tasks(qs, params, user)
-            .annotate(priority_rank=priority_rank)
+            .annotate(priority_rank=PRIORITY_RANK)
             .order_by(F('due_date').asc(nulls_last=True), 'priority_rank', 'id')
         )
 
@@ -316,6 +410,8 @@ class TaskCommentListView(generics.ListCreateAPIView):
         if self.task is None:
             raise NotFound('Tarea no encontrada.')
         require_board_role(request.user, self.task.board)
+        if request.method not in SAFE_METHODS:
+            require_writable(self.task.board)
 
     def get_queryset(self):
         return Comment.objects.filter(task=self.task).select_related('author')
@@ -336,11 +432,101 @@ class CommentViewSet(mixins.UpdateModelMixin, mixins.DestroyModelMixin, viewsets
         return Comment.objects.filter(task__board__in=visible_boards(self.request.user)).select_related('task__board')
 
     def perform_update(self, serializer):
+        require_writable(serializer.instance.task.board)
         if serializer.instance.author_id != self.request.user.pk:
             raise PermissionDenied('Solo el autor puede editar el comentario.')
         serializer.save()
 
     def perform_destroy(self, instance):
+        require_writable(instance.task.board)
         if instance.author_id != self.request.user.pk:
             require_board_role(self.request.user, instance.task.board, BoardRole.ADMIN)
         instance.delete()
+
+
+# ── Inicio y actividad de la organización ───────────────────────────────────
+
+class HomeView(APIView):
+    """
+    GET /organizations/<org_pk>/home/ — panel de Inicio de la organización activa.
+
+    - `my`: mis tareas abiertas, vencidas, para hoy y de los próximos 7 días.
+    - `next_tasks`: las 8 más urgentes (vencimiento y prioridad).
+    - `overview` (null si no corresponde): para propietarios y administradores, todos los
+      proyectos activos o en pausa; para líderes, solo los que lideran. Incluye la carga
+      de trabajo por responsable en esos proyectos.
+    """
+
+    NEXT_TASKS = 8
+
+    def get(self, request, org_pk):
+        user = request.user
+        membership = require_membership(user, org_pk)
+        today = timezone.localdate()
+        boards = visible_boards(user).filter(organization_id=org_pk, archived_at__isnull=True)
+
+        mine = Task.objects.filter(board__in=boards, assignees=user, column__is_done=False)
+        my = mine.aggregate(
+            open=Count('id', distinct=True),
+            overdue=Count('id', filter=Q(due_date__lt=today), distinct=True),
+            today=Count('id', filter=Q(due_date=today), distinct=True),
+            week=Count('id', filter=Q(due_date__gte=today, due_date__lte=today + timedelta(days=7)), distinct=True),
+        )
+        next_tasks = (
+            tasks_queryset().filter(pk__in=mine.values('pk'))
+            .annotate(priority_rank=PRIORITY_RANK)
+            .order_by(F('due_date').asc(nulls_last=True), 'priority_rank', 'id')[: self.NEXT_TASKS]
+        )
+
+        return Response({
+            'my': my,
+            'next_tasks': TaskSummarySerializer(next_tasks, many=True, context={'request': request}).data,
+            'overview': self._overview(user, membership, boards, today),
+        })
+
+    def _overview(self, user, membership, boards, today):
+        if not membership.is_manager:
+            led = BoardMember.objects.filter(user=user, role=BoardRole.ADMIN).values('board_id')
+            boards = boards.filter(pk__in=led)
+            if not boards.exists():
+                return None
+        projects = with_progress(
+            boards.filter(status__in=[Board.Status.ACTIVE, Board.Status.ON_HOLD]), today
+        ).order_by('due_date', 'title')
+
+        open_assignments = Task.assignees.through.objects.filter(
+            task__board__in=projects.values('pk'), task__column__is_done=False
+        )
+        load = (
+            open_assignments.values('user_id', 'user__full_name')
+            .annotate(open=Count('task_id'), overdue=Count('task_id', filter=Q(task__due_date__lt=today)))
+            .order_by('-overdue', '-open', 'user__full_name')
+        )
+        return {
+            'projects': [
+                {
+                    'id': p.id, 'title': p.title, 'color': p.color, 'status': p.status,
+                    'due_date': p.due_date, 'tasks_total': p.tasks_total, 'tasks_done': p.tasks_done,
+                    'tasks_overdue': p.tasks_overdue,
+                    'is_late': bool(p.due_date and p.due_date < today and p.status != Board.Status.COMPLETED),
+                }
+                for p in projects
+            ],
+            'workload': [
+                {'user_id': row['user_id'], 'full_name': row['user__full_name'],
+                 'open': row['open'], 'overdue': row['overdue']}
+                for row in load
+            ],
+        }
+
+
+class OrganizationActivityView(generics.ListAPIView):
+    """GET /organizations/<org_pk>/activity/ — actividad reciente de los proyectos que el usuario ve."""
+
+    serializer_class = ActivitySerializer
+
+    def get_queryset(self):
+        org_pk = self.kwargs['org_pk']
+        require_membership(self.request.user, org_pk)
+        boards = visible_boards(self.request.user).filter(organization_id=org_pk)
+        return Activity.objects.filter(board__in=boards).select_related('actor', 'board')

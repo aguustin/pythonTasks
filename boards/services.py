@@ -11,6 +11,74 @@ def log(board, actor, verb, task=None, **data):
     Activity.objects.create(board=board, actor=actor, verb=verb, task=task, data=data)
 
 
+# ── Regla de responsables (D18) ──────────────────────────────────────────────
+
+def describe_impact(impact):
+    """Agrega nombres al resultado de access_impact, para la vista previa y la actividad."""
+    from accounts.models import User
+
+    names = dict(User.objects.filter(pk__in=[i['user_id'] for i in impact]).values_list('pk', 'full_name'))
+    return [
+        {'user_id': i['user_id'], 'full_name': names.get(i['user_id'], ''), 'tasks': i['tasks']}
+        for i in impact
+    ]
+
+
+@transaction.atomic
+def prune_assignees(board, actor):
+    """
+    Invariante: todo responsable tiene acceso al proyecto. Quita de las tareas del proyecto
+    a quienes ya no tienen acceso y lo registra en la actividad. Devuelve el impacto aplicado.
+    """
+    from boards.access import access_impact
+
+    impact = access_impact(board)
+    if not impact:
+        return []
+    user_ids = [i['user_id'] for i in impact]
+    Task.assignees.through.objects.filter(task__board=board, user_id__in=user_ids).delete()
+    described = describe_impact(impact)
+    log(board, actor, Activity.Verb.ASSIGNEES_REMOVED, users=described)
+    return described
+
+
+def org_access_impact(organization_id, user_id, new_org_role):
+    """Proyectos de la organización donde `user_id` dejaría de ser responsable si pasara a `new_org_role`
+    (None = sale de la organización)."""
+    from boards.access import access_impact
+
+    result = []
+    for board in Board.objects.filter(organization_id=organization_id):
+        lost = [i for i in access_impact(board, org_role_overrides={user_id: new_org_role})
+                if i['user_id'] == user_id]
+        if lost:
+            result.append({'board_id': board.id, 'title': board.title, 'tasks': lost[0]['tasks']})
+    return result
+
+
+def prune_org_assignees(organization_id, actor):
+    for board in Board.objects.filter(organization_id=organization_id):
+        prune_assignees(board, actor)
+
+
+# ── Archivado ────────────────────────────────────────────────────────────────
+
+def archive_board(board, actor):
+    if board.archived_at is None:
+        board.archived_at = timezone.now()
+        board.save(update_fields=['archived_at', 'updated_at'])
+        log(board, actor, Activity.Verb.BOARD_ARCHIVED, title=board.title)
+    return board
+
+
+def restore_board(board, actor):
+    if board.archived_at is not None:
+        board.archived_at = None
+        board.save(update_fields=['archived_at', 'updated_at'])
+        log(board, actor, Activity.Verb.BOARD_RESTORED, title=board.title)
+    return board
+
+
 @transaction.atomic
 def create_board(user, organization, **fields):
     board = Board.objects.create(organization=organization, created_by=user, **fields)

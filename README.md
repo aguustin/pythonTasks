@@ -62,9 +62,18 @@ Base: `/api/v1/` · Autenticación: `Authorization: Bearer <access>` · Errores 
 | POST | `auth/register/` | `{email, full_name, password, password_confirm}` → `{user, tokens}` |
 | POST | `auth/login/` | `{email, password}` → `{user, tokens}` |
 | POST | `auth/refresh/` | `{refresh}` → `{access, refresh}` (rota el refresh) |
-| POST | `auth/logout/` | `{refresh}` → invalida el refresh token |
+| POST | `auth/logout/` | `{refresh}` → cierra esta sesión |
+| POST | `auth/logout-all/` | Cierra todas las sesiones del usuario (access incluidos, al instante) |
 | GET/PATCH | `auth/me/` | Perfil (`full_name` editable) |
-| POST | `auth/change-password/` | `{current_password, new_password}` |
+| POST | `auth/change-password/` | `{current_password, new_password}` → `{tokens}` nuevos; cierra las demás sesiones y avisa por correo |
+| POST | `auth/password-reset/` | `{email}` → 202, siempre la misma respuesta. Envía el enlace si la cuenta existe |
+| POST | `auth/password-reset/confirm/` | `{token, new_password, new_password_confirm}`. Un solo uso, vence a los 60 min; cierra todas las sesiones |
+
+**Sesiones:** access de 10 minutos; refresh rotativo que vence tras 7 días sin uso; límite absoluto de 30 días
+desde el login. Cada token lleva la versión de sesión del usuario (`sv`): cerrar todas las sesiones o cambiar
+la contraseña la incrementa e invalida al instante todo lo emitido antes. El frontend guarda los tokens en el
+servidor de Next.js (BFF) dentro de una cookie httpOnly; el navegador nunca los ve (ver
+`docs/especificacion-funcional.md` §9 bis).
 
 ### Organizaciones
 | Método | Ruta | Permiso |
@@ -74,7 +83,10 @@ Base: `/api/v1/` · Autenticación: `Authorization: Bearer <access>` · Errores 
 | POST | `organizations/{id}/leave/` | miembro |
 | GET | `organizations/{id}/members/` | miembro |
 | PATCH/DELETE | `organizations/{id}/members/{membership_id}/` | admin (ver reglas) |
-| GET/POST | `organizations/{id}/invitations/` | admin · `{email?, role}` · `?status=pending` |
+| GET | `organizations/{id}/members/{membership_id}/impact/?role=…` o `?remove=true` | admin · vista previa: tareas que la persona dejaría de tener asignadas |
+| GET/POST | `organizations/{id}/invitations/` | admin · `{email?, role}` · `?status=pending`. Con email, se envía por correo (`email_sent`) |
+| GET | `organizations/{id}/home/` | miembro · panel de Inicio: mis contadores, próximas tareas y (propietario/admin/líder) resumen de proyectos y carga por persona |
+| GET | `organizations/{id}/activity/` | miembro · actividad reciente de los proyectos que ve (paginado) |
 | DELETE | `organizations/{id}/invitations/{inv_id}/` | admin (revoca) |
 | GET | `invitations/{token}/` | **público** — datos para mostrar la invitación |
 | POST | `invitations/{token}/` | usuario logueado — aceptar |
@@ -84,10 +96,13 @@ El link de invitación es `{FRONTEND_URL}/invitacion/{token}`.
 ### Tableros, columnas y tareas
 | Método | Ruta | Permiso |
 |---|---|---|
-| GET | `boards/?organization={id}` | tableros visibles (incluye `my_role`) |
+| GET | `boards/?organization={id}[&archived=true]` | proyectos visibles, sin archivados por defecto. Incluye `my_role`, `is_favorite`, `tasks_total`, `tasks_done`, `tasks_overdue` |
 | POST | `boards/` | miembro de la org · JSON o multipart (`image`) |
 | GET | `boards/{id}/` | lector (incluye `columns`) |
-| PATCH/DELETE | `boards/{id}/` | admin |
+| PATCH/DELETE | `boards/{id}/` | admin. `status` (`active`/`on_hold`/`completed`), `start_date`, `due_date`. Archivado = solo lectura |
+| POST | `boards/{id}/archive/` · `boards/{id}/restore/` | admin |
+| POST/DELETE | `boards/{id}/favorite/` | lector · favorito personal |
+| POST | `boards/{id}/access-preview/` | admin · `{visibility?, remove_user_ids?}` → responsables que perderían el acceso (no cambia nada) |
 | GET/POST | `boards/{id}/members/` | lector / admin · `{user_id, role}` |
 | PATCH/DELETE | `boards/{id}/members/{member_id}/` | admin |
 | GET/POST | `boards/{id}/columns/` | lector / admin (máx. 6) |
@@ -95,12 +110,16 @@ El link de invitación es `{FRONTEND_URL}/invitacion/{token}`.
 | DELETE | `boards/{id}/columns/{col_id}/?move_to={col_id}` | admin (`move_to` obligatorio si tiene tareas) |
 | POST | `boards/{id}/columns/reorder/` | admin · `{order: [ids]}` |
 | GET/POST | `boards/{id}/tasks/` | lector / editor |
-| GET | `boards/{id}/activity/` | lector (paginado) |
+| GET | `boards/{id}/activity/[?task={id}]` | lector (paginado) |
 | GET/PATCH/DELETE | `tasks/{id}/` | lector / editor / editor |
 | POST | `tasks/{id}/move/` | editor, o lector asignado · `{column, position?}` |
 | GET/POST | `tasks/{id}/comments/` | lector |
 | PATCH/DELETE | `comments/{id}/` | autor / autor o admin |
 | GET | `my-tasks/` | mis tareas asignadas, en todas mis organizaciones |
+
+**Regla de responsables:** todo responsable tiene acceso al proyecto. Si alguien pierde el acceso (sale del
+proyecto, el proyecto pasa a privado, baja de rol en la organización), deja de ser responsable de esas tareas y
+queda registrado en la actividad (`assignees_removed`). Las vistas previas sirven para avisar antes de confirmar.
 
 **Tarea:** `title`, `description`, `priority` (`low`/`medium`/`high`/`urgent`), `due_date`,
 `column`, `assignee_ids` (escritura) / `assignees` (lectura). Para cambiar de columna se usa `move/`.
@@ -138,7 +157,9 @@ Frontend: `cd taskfront && npm install && npm run dev` (pendiente de migrar a la
 ## Variables de entorno
 
 Ver [`.env.example`](.env.example). En producción son obligatorias `SECRET_KEY`, `ALLOWED_HOSTS`,
-`DATABASE_URL`, `CORS_ALLOWED_ORIGINS` y `FRONTEND_URL`. Sin `SECRET_KEY` la app no arranca.
+`DATABASE_URL`, `FRONTEND_URL`, `BFF_SHARED_SECRET`, `RESEND_API_KEY` y `EMAIL_FROM` (con dominio verificado
+en Resend). Sin `SECRET_KEY` la app no arranca. `CORS_ALLOWED_ORIGINS` queda vacío: con el BFF el navegador no
+llama a la API.
 Si no se configura Cloudinary (`CLOUD_NAME`, `CLOUD_API_KEY`, `CLOUD_API_SECRET`) las imágenes
 se guardan en disco.
 

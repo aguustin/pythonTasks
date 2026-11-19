@@ -32,14 +32,14 @@ def visible_boards(user):
     )
 
 
-def _resolve(org_role, explicit_role, board):
+def _resolve(org_role, explicit_role, board, visibility=None):
     if org_role is None:
         return None
     if org_role in ORG_MANAGER_ROLES:
         return BoardRole.ADMIN
     if explicit_role:
         return explicit_role
-    if board.visibility == Board.Visibility.ORGANIZATION:
+    if (visibility or board.visibility) == Board.Visibility.ORGANIZATION:
         return board.organization_role
     return None
 
@@ -84,6 +84,44 @@ def require_board_role(user, board, minimum=BoardRole.VIEWER):
     if not has_role(role, minimum):
         raise PermissionDenied(MESSAGES.get(minimum, 'No tenés permiso para esto.'))
     return role
+
+
+ARCHIVED = 'El proyecto está archivado. Restauralo para hacer cambios.'
+
+
+def require_writable(board):
+    """Un proyecto archivado es de solo lectura (lo aplica la API, no solo la interfaz)."""
+    if board.archived_at is not None:
+        raise PermissionDenied(ARCHIVED)
+
+
+def access_impact(board, *, visibility=None, remove_user_ids=(), org_role_overrides=None):
+    """
+    Responsables de tareas del proyecto que quedarían SIN acceso si se aplicara el cambio
+    simulado (D18). Sin parámetros, evalúa el estado actual.
+    Devuelve [{'user_id': id, 'tasks': n}, ...].
+    """
+    from django.db.models import Count  # import local: módulo liviano
+    from boards.models import Task
+
+    org_roles = dict(
+        Membership.objects.filter(organization_id=board.organization_id).values_list('user_id', 'role')
+    )
+    explicit = dict(BoardMember.objects.filter(board=board).values_list('user_id', 'role'))
+    for user_id in remove_user_ids:
+        explicit.pop(user_id, None)
+    org_roles.update(org_role_overrides or {})
+
+    assignments = (
+        Task.assignees.through.objects.filter(task__board=board)
+        .values('user_id')
+        .annotate(tasks=Count('task_id'))
+    )
+    return [
+        {'user_id': row['user_id'], 'tasks': row['tasks']}
+        for row in assignments
+        if _resolve(org_roles.get(row['user_id']), explicit.get(row['user_id']), board, visibility) is None
+    ]
 
 
 def get_board_or_404(user, board_id, minimum=BoardRole.VIEWER):

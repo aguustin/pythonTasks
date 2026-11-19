@@ -1,14 +1,10 @@
 from django.contrib.auth import password_validation
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from rest_framework_simplejwt.tokens import RefreshToken
 
 from accounts.models import User
-
-
-def tokens_for(user):
-    refresh = RefreshToken.for_user(user)
-    return {'access': str(refresh.access_token), 'refresh': str(refresh)}
+from accounts.services import token_user
+from accounts.sessions import add_session_claims
 
 
 class UserPublicSerializer(serializers.ModelSerializer):
@@ -65,6 +61,10 @@ class LoginSerializer(TokenObtainPairSerializer):
         'no_active_account': 'Email o contraseña incorrectos.',
     }
 
+    @classmethod
+    def get_token(cls, user):
+        return add_session_claims(super().get_token(user), user)  # ver accounts.sessions
+
     def validate(self, attrs):
         attrs[self.username_field] = attrs.get(self.username_field, '').strip().lower()
         data = super().validate(attrs)
@@ -90,3 +90,22 @@ class ChangePasswordSerializer(serializers.Serializer):
 
 class LogoutSerializer(serializers.Serializer):
     refresh = serializers.CharField()
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    token = serializers.CharField(max_length=128)
+    new_password = serializers.CharField(write_only=True)
+    new_password_confirm = serializers.CharField(write_only=True)
+
+    def validate(self, attrs):
+        if attrs['new_password'] != attrs['new_password_confirm']:
+            raise serializers.ValidationError({'new_password_confirm': 'Las contraseñas no coinciden.'})
+        user = token_user(attrs['token'])
+        if user is None:
+            raise serializers.ValidationError({'token': 'Este enlace ya no es válido. Pedí uno nuevo.'})
+        password_validation.validate_password(attrs['new_password'], user)
+        return attrs

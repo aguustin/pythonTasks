@@ -25,9 +25,9 @@ class Organization(models.Model):
 
 
 class OrgRole(models.TextChoices):
-    OWNER = 'owner', 'Dueño'
+    OWNER = 'owner', 'Propietario'
     ADMIN = 'admin', 'Administrador'
-    MEMBER = 'member', 'Miembro'
+    MEMBER = 'member', 'Integrante'
 
 
 ORG_MANAGER_ROLES = (OrgRole.OWNER, OrgRole.ADMIN)

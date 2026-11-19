@@ -65,6 +65,7 @@ class AuthTests(BaseAPITest):
         bad = self.client.post('/api/v1/auth/change-password/', {'current_password': 'x', 'new_password': 'Nueva-Clave-2026'}, format='json')
         self.assertEqual(bad.status_code, 400)
         ok = self.client.post('/api/v1/auth/change-password/', {'current_password': self.password, 'new_password': 'Nueva-Clave-2026'}, format='json')
-        self.assertEqual(ok.status_code, 204)
+        self.assertEqual(ok.status_code, 200)
+        self.assertIn('access', ok.data['tokens'])  # tokens nuevos para esta sesión
         user.refresh_from_db()
         self.assertTrue(user.check_password('Nueva-Clave-2026'))

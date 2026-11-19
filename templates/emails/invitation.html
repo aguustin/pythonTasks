@@ -1,0 +1,8 @@
+{% extends "emails/base.html" %}
+{% block content %}
+<h1 style="margin:0 0 16px;font-family:'Space Grotesk',Segoe UI,Arial,sans-serif;font-size:22px;font-weight:600;">Te invitaron a {{ organization }}</h1>
+<p style="margin:0;">{{ inviter }} te invitó a sumarte a <strong>{{ organization }}</strong> en Velatrix One · Projects como <strong>{{ role }}</strong>. Ahí van a organizar proyectos y tareas en equipo.</p>
+{% include "emails/_button.html" with url=invite_url label="Aceptar la invitación" %}
+<p style="margin:0;font-size:13px;color:#4B5563;">La invitación vence el {{ expires_at|date:"j/n/Y" }} y sirve una sola vez.</p>
+{% endblock %}
+{% block footer_note %}<p style="margin:0;">Si no esperabas esta invitación, podés ignorar este correo.</p>{% endblock %}

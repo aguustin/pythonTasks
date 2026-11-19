@@ -86,7 +86,7 @@ ROOT_URLCONF = 'tasksManager.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -189,7 +189,7 @@ FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:3000').rstrip('/
 # -----------------------------------------------------------------------------
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'accounts.sessions.SessionJWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
@@ -198,28 +198,56 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.JSONRenderer',
     ),
     'DEFAULT_PAGINATION_CLASS': 'tasksManager.pagination.StandardPagination',
-    # Solo limita las vistas que declaran `throttle_scope` (login, registro, invitaciones).
+    # Solo limita las vistas que declaran `throttle_scope`. Identifica por la IP real del
+    # usuario, reenviada por el BFF (tasksManager.client_ip).
     'DEFAULT_THROTTLE_CLASSES': (
-        'rest_framework.throttling.ScopedRateThrottle',
+        'tasksManager.client_ip.ClientIPScopedRateThrottle',
     ),
     'DEFAULT_THROTTLE_RATES': {
         'auth': os.environ.get('THROTTLE_AUTH', '10/min'),
         'invitation': os.environ.get('THROTTLE_INVITATION', '30/min'),
+        'password_reset': os.environ.get('THROTTLE_PASSWORD_RESET', '10/hour'),
+        'password_reset_email': os.environ.get('THROTTLE_PASSWORD_RESET_EMAIL', '3/hour'),
     },
 }
 if DEBUG:
     REST_FRAMEWORK['DEFAULT_RENDERER_CLASSES'] += ('rest_framework.renderers.BrowsableAPIRenderer',)
 if TESTING:
-    REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'] = {'auth': '1000/min', 'invitation': '1000/min'}
+    REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'] = {
+        scope: '1000/min' for scope in REST_FRAMEWORK['DEFAULT_THROTTLE_RATES']
+    }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=int(os.environ.get('JWT_ACCESS_MINUTES', '60'))),
+    # Access corto; el refresh rota con el uso y vence tras 7 días sin actividad (D24).
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=int(os.environ.get('JWT_ACCESS_MINUTES', '10'))),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=int(os.environ.get('JWT_REFRESH_DAYS', '7'))),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'UPDATE_LAST_LOGIN': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
+
+# Límite absoluto de una sesión desde el login, aunque se siga usando (D24).
+SESSION_ABSOLUTE_DAYS = int(os.environ.get('SESSION_ABSOLUTE_DAYS', '30'))
+
+# Secreto compartido con el BFF (servidor de Next.js). Solo con este secreto la API confía
+# en la IP del usuario que reenvía el BFF. Vacío = no se confía en ninguna IP reenviada.
+BFF_SHARED_SECRET = os.environ.get('BFF_SHARED_SECRET', '')
+
+# -----------------------------------------------------------------------------
+# Correo transaccional (Resend). Sin RESEND_API_KEY los correos se escriben en la consola.
+# -----------------------------------------------------------------------------
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
+EMAIL_BACKEND = (
+    'tasksManager.email_backends.ResendEmailBackend'
+    if RESEND_API_KEY
+    else 'django.core.mail.backends.console.EmailBackend'
+)
+DEFAULT_FROM_EMAIL = os.environ.get('EMAIL_FROM', 'Velatrix One · Projects <no-reply@localhost>')
+EMAIL_REPLY_TO = os.environ.get('EMAIL_REPLY_TO', '')
+# En segundo plano después del commit; en tests, inmediato.
+EMAIL_ASYNC = not TESTING
+PASSWORD_RESET_MINUTES = 60
 
 # -----------------------------------------------------------------------------
 # Reglas de negocio

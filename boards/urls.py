@@ -24,4 +24,6 @@ urlpatterns = router.urls + [
     path('boards/<int:board_pk>/activity/', views.BoardActivityView.as_view(), name='board-activity'),
     path('tasks/<int:task_pk>/comments/', views.TaskCommentListView.as_view(), name='task-comments'),
     path('my-tasks/', views.MyTasksView.as_view(), name='my-tasks'),
+    path('organizations/<int:org_pk>/home/', views.HomeView.as_view(), name='org-home'),
+    path('organizations/<int:org_pk>/activity/', views.OrganizationActivityView.as_view(), name='org-activity'),
 ]

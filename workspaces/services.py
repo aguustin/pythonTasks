@@ -47,6 +47,23 @@ def change_role(membership, new_role):
     return membership
 
 
+def send_invitation_email(invitation):
+    """Envía la invitación por correo en el momento (para informar si falló). True si salió."""
+    from tasksManager.mail import send_template
+
+    inviter = invitation.created_by.full_name if invitation.created_by else 'Alguien'
+    return send_template(
+        'invitation', invitation.email, f'Te invitaron a {invitation.organization.name}',
+        {
+            'organization': invitation.organization.name,
+            'inviter': inviter,
+            'role': invitation.get_role_display().lower(),
+            'invite_url': invitation.url,
+            'expires_at': timezone.localtime(invitation.expires_at),
+        },
+    )
+
+
 @transaction.atomic
 def accept_invitation(token, user):
     invitation = (

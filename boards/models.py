@@ -29,6 +29,17 @@ class Board(models.Model):
     organization_role = models.CharField(
         max_length=10, choices=BoardRole.choices, default=BoardRole.EDITOR
     )
+
+    class Status(models.TextChoices):
+        ACTIVE = 'active', 'Activo'
+        ON_HOLD = 'on_hold', 'En pausa'
+        COMPLETED = 'completed', 'Finalizado'
+
+    status = models.CharField('estado', max_length=10, choices=Status.choices, default=Status.ACTIVE)
+    start_date = models.DateField('inicio previsto', null=True, blank=True)
+    due_date = models.DateField('fin previsto', null=True, blank=True)
+    # Archivado: oculto de los listados, solo lectura y restaurable. Independiente del estado.
+    archived_at = models.DateTimeField(null=True, blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='+'
     )
@@ -36,12 +47,32 @@ class Board(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = 'tablero'
-        verbose_name_plural = 'tableros'
+        verbose_name = 'proyecto'
+        verbose_name_plural = 'proyectos'
         ordering = ['-created_at', 'id']
 
     def __str__(self):
         return self.title
+
+    @property
+    def is_archived(self):
+        return self.archived_at is not None
+
+
+class ProjectFavorite(models.Model):
+    """Proyecto marcado como favorito por un usuario (accesos rápidos del menú)."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='favorite_projects')
+    board = models.ForeignKey(Board, on_delete=models.CASCADE, related_name='favorited_by')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'proyecto favorito'
+        verbose_name_plural = 'proyectos favoritos'
+        ordering = ['created_at', 'id']
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'board'], name='unique_project_favorite'),
+        ]
 
 
 class BoardMember(models.Model):
@@ -53,8 +84,8 @@ class BoardMember(models.Model):
     added_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        verbose_name = 'miembro del tablero'
-        verbose_name_plural = 'miembros del tablero'
+        verbose_name = 'miembro del proyecto'
+        verbose_name_plural = 'miembros del proyecto'
         ordering = ['added_at', 'id']
         constraints = [
             models.UniqueConstraint(fields=['board', 'user'], name='unique_board_member'),
@@ -146,8 +177,11 @@ class Activity(models.Model):
     """Registro de quién hizo qué en un tablero."""
 
     class Verb(models.TextChoices):
-        BOARD_CREATED = 'board_created', 'Creó el tablero'
-        BOARD_UPDATED = 'board_updated', 'Editó el tablero'
+        BOARD_CREATED = 'board_created', 'Creó el proyecto'
+        BOARD_UPDATED = 'board_updated', 'Editó el proyecto'
+        BOARD_ARCHIVED = 'board_archived', 'Archivó el proyecto'
+        BOARD_RESTORED = 'board_restored', 'Restauró el proyecto'
+        ASSIGNEES_REMOVED = 'assignees_removed', 'Quitó responsables sin acceso'
         MEMBER_ADDED = 'member_added', 'Agregó un miembro'
         MEMBER_UPDATED = 'member_updated', 'Cambió el permiso de un miembro'
         MEMBER_REMOVED = 'member_removed', 'Quitó un miembro'

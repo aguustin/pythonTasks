@@ -1,0 +1,13 @@
+{% autoescape off %}Te invitaron a {{ organization }}
+
+{{ inviter }} te invitó a sumarte a {{ organization }} en Velatrix One · Projects como {{ role }}.
+
+Aceptá la invitación acá:
+{{ invite_url }}
+
+La invitación vence el {{ expires_at|date:"j/n/Y" }} y sirve una sola vez.
+Si no esperabas esta invitación, podés ignorar este correo.
+
+—
+Velatrix One · Projects — Gestión de proyectos y equipos · por Velatrix
+{% endautoescape %}

@@ -16,7 +16,13 @@ from workspaces.serializers import (
     MembershipSerializer,
     OrganizationSerializer,
 )
-from workspaces.services import accept_invitation, change_role, create_organization, remove_membership
+from workspaces.services import (
+    accept_invitation,
+    change_role,
+    create_organization,
+    remove_membership,
+    send_invitation_email,
+)
 
 
 class OrganizationViewSet(viewsets.ModelViewSet):
@@ -89,11 +95,35 @@ class MembershipViewSet(
         new_role = serializer.validated_data.get('role', target.role)
         if new_role == OrgRole.OWNER and self.my_membership.role != OrgRole.OWNER:
             raise PermissionDenied('Solo un dueño puede nombrar a otro dueño.')
+        was_manager = target.is_manager
         change_role(target, new_role)
+        if was_manager and not target.is_manager:
+            # Pierde el acceso total: deja de ser responsable donde ya no tiene acceso (D18).
+            from boards.services import prune_org_assignees
+            prune_org_assignees(target.organization_id, self.request.user)
 
     def perform_destroy(self, instance):
         self._check_can_manage(instance)
         remove_membership(instance)
+
+    @action(detail=True, methods=['get'])
+    def impact(self, request, org_pk=None, pk=None):
+        """
+        Vista previa (no cambia nada) de ?role=<rol> o ?remove=true: en qué proyectos
+        la persona dejaría de ser responsable de tareas por perder el acceso (D18).
+        """
+        from boards.services import org_access_impact
+
+        target = self.get_object()
+        self._check_can_manage(target)
+        if request.query_params.get('remove') == 'true':
+            new_role = None
+        else:
+            new_role = request.query_params.get('role')
+            if new_role not in OrgRole.values:
+                raise ValidationError({'role': 'Indicá un rol válido o remove=true.'})
+        projects = org_access_impact(target.organization_id, target.user_id, new_role)
+        return Response({'projects': projects, 'tasks': sum(p['tasks'] for p in projects)})
 
 
 class InvitationViewSet(
@@ -124,7 +154,14 @@ class InvitationViewSet(
         org_id = self.kwargs['org_pk']
         if email and Membership.objects.filter(organization_id=org_id, user__email__iexact=email).exists():
             raise ValidationError({'email': 'Esa persona ya es miembro de la organización.'})
-        serializer.save(organization_id=org_id, created_by=self.request.user)
+        invitation = serializer.save(organization_id=org_id, created_by=self.request.user)
+        self.email_sent = send_invitation_email(invitation) if invitation.email else None
+
+    def create(self, request, *args, **kwargs):
+        """Agrega `email_sent` (true/false; null si la invitación no tiene email)."""
+        response = super().create(request, *args, **kwargs)
+        response.data['email_sent'] = self.email_sent
+        return response
 
     def perform_destroy(self, instance):
         """No se borra: se revoca para que quede el historial."""
