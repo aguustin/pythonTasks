@@ -56,8 +56,9 @@ dist/
 downloads/ 
 eggs/ 
 .eggs/ 
-lib/ 
-lib64/ 
+# Solo en la raíz (paquetes de Python): no debe afectar a taskfront/src/lib
+/lib/
+/lib64/
 parts/ 
 sdist/ 
 var/ 
