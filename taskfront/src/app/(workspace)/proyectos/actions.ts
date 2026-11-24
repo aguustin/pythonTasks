@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 
 import { failure, type ActionResult } from '@/lib/forms'
 import type { BoardRole, Project, ProjectStatus } from '@/lib/projects'
+import type { Task } from '@/lib/tasks'
 import { PROJECT_COLORS } from '@/lib/palette'
 import { apiAction } from '@/lib/server/dal'
 import { requireActiveOrganization } from '@/lib/server/organization'
@@ -180,4 +181,29 @@ export async function removeProjectMember(id: number, memberId: number): Promise
   if (!res.ok) return failure(res)
   refresh(id)
   return { ok: true, data: undefined }
+}
+
+// ── Tablero ──────────────────────────────────────────────────────────────────
+// Sin revalidatePath: el tablero aplica los cambios en forma optimista y, cuando termina
+// la cola de operaciones, pide un refresco para sincronizar avance y menú lateral.
+
+export async function createTask(boardId: number, columnId: number, title: string): Promise<ActionResult<Task>> {
+  const clean = title.trim()
+  if (!validId(boardId) || !validId(columnId)) return { ok: false, error: 'Datos inválidos.' }
+  if (!clean) return { ok: false, error: 'Escribí un título para la tarea.' }
+  const res = await apiAction<Task>(`/boards/${boardId}/tasks/`, 'POST', { title: clean.slice(0, 200), column: columnId })
+  if (!res.ok && res.status === 404) return { ok: false, error: 'El proyecto ya no está disponible.' }
+  if (!res.ok) return failure(res)
+  return { ok: true, data: res.data }
+}
+
+/** Mover a `columnId` en el índice `position` (0 = arriba). La API renumera ambas columnas. */
+export async function moveTask(taskId: number, columnId: number, position: number): Promise<ActionResult<Task>> {
+  if (!validId(taskId) || !validId(columnId) || !Number.isInteger(position) || position < 0) {
+    return { ok: false, error: 'Datos inválidos.' }
+  }
+  const res = await apiAction<Task>(`/tasks/${taskId}/move/`, 'POST', { column: columnId, position })
+  if (!res.ok && res.status === 404) return { ok: false, error: 'La tarea ya no existe: puede que alguien la haya eliminado.' }
+  if (!res.ok) return failure(res)
+  return { ok: true, data: res.data }
 }

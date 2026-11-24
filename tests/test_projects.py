@@ -225,3 +225,35 @@ class HomeAndOrgActivityTests(BaseAPITest):
         self.as_user(self.owner)
         res = self.client.get(f'/api/v1/organizations/{self.org.id}/activity/')
         self.assertEqual({a['board_title'] for a in res.data['results']}, {'Público', 'Del líder'})
+
+
+class PeopleWithAccessTests(BaseAPITest):
+    def setUp(self):
+        self.owner = self.make_user('owner')
+        self.editor = self.make_user('editor')
+        self.member = self.make_user('member')
+        self.outsider = self.make_user('outsider')
+        self.org = self.make_org(self.owner)
+        self.add_member(self.org, self.editor)
+        self.add_member(self.org, self.member)
+        self.make_org(self.outsider, 'Otra')
+        self.bid = self.make_board(self.owner, self.org)['id']  # privado
+        self.client.post(f'/api/v1/boards/{self.bid}/members/', {'user_id': self.editor.id, 'role': 'editor'}, format='json')
+
+    def people(self):
+        res = self.client.get(f'/api/v1/boards/{self.bid}/people/')
+        self.assertEqual(res.status_code, 200)
+        return {p['id']: p['role'] for p in res.data}
+
+    def test_private_project_lists_only_people_with_access(self):
+        self.assertEqual(self.people(), {self.owner.id: 'admin', self.editor.id: 'editor'})
+
+    def test_organization_visibility_adds_everyone_with_org_role(self):
+        self.client.patch(f'/api/v1/boards/{self.bid}/', {'visibility': 'organization', 'organization_role': 'viewer'}, format='json')
+        self.assertEqual(self.people(), {self.owner.id: 'admin', self.editor.id: 'editor', self.member.id: 'viewer'})
+
+    def test_requires_access(self):
+        self.as_user(self.member)
+        self.assertEqual(self.client.get(f'/api/v1/boards/{self.bid}/people/').status_code, 404)
+        self.as_user(self.outsider)
+        self.assertEqual(self.client.get(f'/api/v1/boards/{self.bid}/people/').status_code, 404)

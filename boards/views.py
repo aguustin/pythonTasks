@@ -15,6 +15,7 @@ from boards.access import (
     RoleCache,
     access_impact,
     get_board_or_404,
+    people_with_access,
     has_role,
     require_board_role,
     require_writable,
@@ -72,6 +73,7 @@ class BoardViewSet(viewsets.ModelViewSet):
     GET  /boards/?organization=<id>[&archived=true]   proyectos visibles (sin archivados por defecto)
     POST /boards/                     crear (cualquier miembro de la organización)
     GET/PATCH/DELETE /boards/<id>/    ver (lector) / editar y borrar (líder = admin)
+    GET  /boards/<id>/people/                         personas con acceso y su permiso (lector)
     POST /boards/<id>/archive/ · /restore/            archivar / restaurar (líder)
     POST|DELETE /boards/<id>/favorite/                marcar / desmarcar favorito (lector)
     POST /boards/<id>/access-preview/                 a quién dejaría sin acceso un cambio (líder)
@@ -156,6 +158,15 @@ class BoardViewSet(viewsets.ModelViewSet):
         else:
             ProjectFavorite.objects.filter(user=request.user, board=board).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=['get'])
+    def people(self, request, pk=None):
+        """Personas con acceso al proyecto y su permiso efectivo (lector o más)."""
+        board = self.get_object()
+        return Response([
+            {'id': u.pk, 'email': u.email, 'full_name': u.full_name, 'role': role}
+            for u, role in people_with_access(board)
+        ])
 
     @action(detail=True, methods=['post'], url_path='access-preview')
     def access_preview(self, request, pk=None):

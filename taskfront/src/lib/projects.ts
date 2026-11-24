@@ -1,4 +1,5 @@
 /** Tipos y reglas de proyectos compartidos entre servidor y cliente. */
+import type { Column } from './tasks.ts'
 
 export type BoardRole = 'admin' | 'editor' | 'viewer'
 export type ProjectStatus = 'active' | 'on_hold' | 'completed'
@@ -21,6 +22,8 @@ export type Project = {
   is_favorite: boolean
   leads: { id: number; email: string; full_name: string }[]
   my_role: BoardRole
+  /** Solo en el detalle (GET /boards/<id>/). */
+  columns?: Column[]
 }
 
 export type ProjectMember = {

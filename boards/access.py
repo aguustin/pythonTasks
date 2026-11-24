@@ -86,6 +86,26 @@ def require_board_role(user, board, minimum=BoardRole.VIEWER):
     return role
 
 
+def people_with_access(board):
+    """
+    Personas con acceso efectivo al proyecto y su permiso (para elegir responsables).
+    Devuelve [(user, role)] ordenado por nombre. Dos consultas, sin importar la cantidad.
+    """
+    from accounts.models import User
+
+    org_roles = dict(
+        Membership.objects.filter(organization_id=board.organization_id).values_list('user_id', 'role')
+    )
+    explicit = dict(BoardMember.objects.filter(board=board).values_list('user_id', 'role'))
+    users = User.objects.filter(pk__in=org_roles.keys(), is_active=True).order_by('full_name', 'id')
+    result = []
+    for user in users:
+        role = _resolve(org_roles.get(user.pk), explicit.get(user.pk), board)
+        if role is not None:
+            result.append((user, role))
+    return result
+
+
 ARCHIVED = 'El proyecto está archivado. Restauralo para hacer cambios.'
 
 
