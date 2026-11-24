@@ -1,5 +1,7 @@
 import Link from 'next/link'
 
+import { PageTabs } from './PageTabs'
+
 /**
  * Barra de página (dirección C): migas + título + pestañas de vista + acción principal,
  * fija arriba del contenido. Reemplaza al título grande del sistema base.
@@ -25,24 +27,7 @@ export function PageBar({ title, crumbs, tabs, activeTab, meta, actions }: {
           <h1 className="truncate text-[15px]">{title}</h1>
           {meta && <span className="hidden truncate text-[13px] text-subtle sm:inline">{meta}</span>}
         </div>
-        {tabs && (
-          <nav aria-label={`Vistas de ${title}`} className="-my-2 flex h-13 items-stretch gap-1 overflow-x-auto">
-            {tabs.map((tab) => {
-              const selected = tab.key === activeTab
-              return (
-                <Link key={tab.key} href={tab.href} aria-current={selected ? 'page' : undefined} scroll={false}
-                  className={`relative flex items-center gap-1.5 whitespace-nowrap px-2.5 text-[13px] font-medium transition-colors ${
-                    selected
-                      ? 'text-text after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full after:bg-accent-indicator'
-                      : 'text-subtle hover:text-text'
-                  }`}>
-                  {tab.label}
-                  {tab.count !== undefined && <span className="font-mono text-[11px] text-subtle">{tab.count}</span>}
-                </Link>
-              )
-            })}
-          </nav>
-        )}
+        {tabs && <PageTabs tabs={tabs} activeTab={activeTab} label={`Vistas de ${title}`} />}
         {actions && <div className="ml-auto flex items-center gap-2">{actions}</div>}
       </div>
     </div>

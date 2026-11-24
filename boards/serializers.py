@@ -4,7 +4,7 @@ from rest_framework import serializers
 from accounts.models import User
 from accounts.serializers import UserPublicSerializer
 from boards.access import board_role
-from boards.models import Activity, Board, BoardMember, Column, Comment, Task
+from boards.models import Activity, Board, BoardMember, BoardRole, Column, Comment, Task
 from workspaces.models import Membership
 
 
@@ -30,13 +30,16 @@ class BoardSerializer(serializers.ModelSerializer):
     tasks_done = serializers.IntegerField(read_only=True, default=0)
     tasks_overdue = serializers.IntegerField(read_only=True, default=0)
     is_favorite = serializers.BooleanField(read_only=True, default=False)
+    # Líderes: permiso explícito de administrador en el proyecto (los propietarios y
+    # administradores de la organización lo son de todos, por eso no se listan acá).
+    leads = serializers.SerializerMethodField()
 
     class Meta:
         model = Board
         fields = [
             'id', 'organization', 'organization_name', 'title', 'description', 'color', 'image',
             'visibility', 'organization_role', 'status', 'start_date', 'due_date', 'archived_at',
-            'tasks_total', 'tasks_done', 'tasks_overdue', 'is_favorite',
+            'tasks_total', 'tasks_done', 'tasks_overdue', 'is_favorite', 'leads',
             'created_by', 'created_at', 'updated_at', 'my_role',
         ]
         read_only_fields = ['id', 'archived_at', 'created_by', 'created_at', 'updated_at']
@@ -47,6 +50,12 @@ class BoardSerializer(serializers.ModelSerializer):
         if start and due and due < start:
             raise serializers.ValidationError({'due_date': 'El fin previsto no puede ser anterior al inicio.'})
         return attrs
+
+    def get_leads(self, obj):
+        members = getattr(obj, 'lead_members', None)
+        if members is None:
+            members = obj.members.filter(role=BoardRole.ADMIN).select_related('user')
+        return UserPublicSerializer([m.user for m in members], many=True).data
 
     def get_my_role(self, obj):
         cache = self.context.get('role_cache')

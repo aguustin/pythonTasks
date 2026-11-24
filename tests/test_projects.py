@@ -37,6 +37,13 @@ class ProjectLifecycleTests(BaseAPITest):
         listed = self.client.get(f'/api/v1/boards/?organization={self.org.id}').data[0]
         self.assertEqual((listed['tasks_total'], listed['tasks_done'], listed['tasks_overdue']), (3, 1, 1))
 
+    def test_list_includes_explicit_leads(self):
+        self.client.post(f'/api/v1/boards/{self.bid}/members/', {'user_id': self.editor.id, 'role': 'admin'}, format='json')
+        listed = self.client.get(f'/api/v1/boards/?organization={self.org.id}').data[0]
+        self.assertEqual({u['id'] for u in listed['leads']}, {self.owner.id, self.editor.id})
+        detail = self.client.get(f'/api/v1/boards/{self.bid}/').data
+        self.assertEqual(len(detail['leads']), 2)
+
     def test_due_date_not_before_start(self):
         res = self.client.patch(f'/api/v1/boards/{self.bid}/', {'start_date': '2026-12-10', 'due_date': '2026-12-01'},
                                 format='json')

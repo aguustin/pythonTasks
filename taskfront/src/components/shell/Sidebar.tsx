@@ -1,16 +1,20 @@
 'use client'
 
-import { FolderKanban, House, ListChecks, Settings, Users, type LucideIcon } from 'lucide-react'
+import { FolderKanban, House, ListChecks, Settings, Star, Users, type LucideIcon } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 import { Brand } from '@/components/brand/Brand'
 import type { OrgRole } from '@/lib/labels'
+import { colorVars } from '@/lib/palette'
+import { progress } from '@/lib/projects'
 
 import { OrgSwitcher } from './OrgSwitcher'
 import { UserMenu } from './UserMenu'
 
-type Item = { href: string; label: string; icon: LucideIcon }
+type Item = { href: string; label: string; icon: LucideIcon; exact?: boolean }
+
+export type SidebarProject = { id: number; title: string; color: string; tasks_done: number; tasks_total: number; is_favorite: boolean }
 
 /**
  * Menú lateral (dirección C · "Mesa de planificación"):
@@ -28,7 +32,7 @@ const FOOTER: Item[] = [
 
 function NavLink({ item, onNavigate }: { item: Item; onNavigate?: () => void }) {
   const pathname = usePathname()
-  const active = pathname === item.href || pathname.startsWith(`${item.href}/`)
+  const active = pathname === item.href || (!item.exact && pathname.startsWith(`${item.href}/`))
   const Icon = item.icon
   return (
     <Link
@@ -56,10 +60,35 @@ function Group({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
-export function Sidebar({ organizations, activeOrgId, user, onNavigate }: {
+/** Un proyecto en el menú: su color, su nombre y su avance (dirección C). */
+function ProjectLink({ project, onNavigate }: { project: SidebarProject; onNavigate?: () => void }) {
+  const pathname = usePathname()
+  const href = `/proyectos/${project.id}`
+  const active = pathname === href || pathname.startsWith(`${href}/`)
+  const pct = progress(project)
+  return (
+    <Link href={href} onClick={onNavigate} aria-current={active ? 'page' : undefined}
+      className={`relative flex h-8 items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 text-[13px] transition-colors ${
+        active
+          ? 'bg-sidebar-active-bg font-medium text-sidebar-active before:absolute before:-left-3 before:inset-y-1.5 before:w-0.5 before:rounded-full before:bg-sidebar-active-bar'
+          : 'text-sidebar-item hover:bg-sidebar-item-hover-bg hover:text-sidebar-item-hover'
+      }`}>
+      <span aria-hidden style={colorVars(project.color)} className="size-2.5 shrink-0 rounded-[3px] bg-[var(--pc)] dark:bg-[var(--pc-dark)]" />
+      <span className="min-w-0 flex-1 truncate">{project.title}</span>
+      {project.is_favorite && <Star aria-label="Favorito" size={11} strokeWidth={2} className="shrink-0 text-warning" fill="currentColor" />}
+      <span aria-label={`Avance ${pct}%`} className="h-[3px] w-8 shrink-0 overflow-hidden rounded-full bg-surface-2">
+        <span className="block h-full rounded-full bg-accent-indicator" style={{ width: `${pct}%` }} />
+      </span>
+    </Link>
+  )
+}
+
+export function Sidebar({ organizations, activeOrgId, user, projects, moreProjects, onNavigate }: {
   organizations: { id: number; name: string; my_role: OrgRole }[]
   activeOrgId: number
   user: { full_name: string; email: string }
+  projects: SidebarProject[]
+  moreProjects: number
   onNavigate?: () => void
 }) {
   return (
@@ -74,8 +103,10 @@ export function Sidebar({ organizations, activeOrgId, user, onNavigate }: {
           {MY_WORK.map((item) => <li key={item.href}><NavLink item={item} onNavigate={onNavigate} /></li>)}
         </Group>
         <Group label="Proyectos">
-          {/* La lista de proyectos con su avance se suma en el incremento 3.2. */}
-          <li><NavLink item={{ href: '/proyectos', label: 'Todos los proyectos', icon: FolderKanban }} onNavigate={onNavigate} /></li>
+          {projects.map((p) => <li key={p.id}><ProjectLink project={p} onNavigate={onNavigate} /></li>)}
+          <li>
+            <NavLink item={{ href: '/proyectos', label: moreProjects ? `Todos los proyectos (+${moreProjects})` : 'Todos los proyectos', icon: FolderKanban, exact: true }} onNavigate={onNavigate} />
+          </li>
         </Group>
         <ul className="mt-auto space-y-0.5 border-t border-sidebar-border pt-3">
           {FOOTER.map((item) => <li key={item.href}><NavLink item={item} onNavigate={onNavigate} /></li>)}

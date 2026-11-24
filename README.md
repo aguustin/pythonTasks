@@ -98,7 +98,7 @@ El link de invitación es `{FRONTEND_URL}/invitacion/{token}`.
 ### Tableros, columnas y tareas
 | Método | Ruta | Permiso |
 |---|---|---|
-| GET | `boards/?organization={id}[&archived=true]` | proyectos visibles, sin archivados por defecto. Incluye `my_role`, `is_favorite`, `tasks_total`, `tasks_done`, `tasks_overdue` |
+| GET | `boards/?organization={id}[&archived=true]` | proyectos visibles, sin archivados por defecto. Incluye `my_role`, `is_favorite`, `tasks_total`, `tasks_done`, `tasks_overdue` y `leads` (líderes explícitos) |
 | POST | `boards/` | miembro de la org · JSON o multipart (`image`) |
 | GET | `boards/{id}/` | lector (incluye `columns`) |
 | PATCH/DELETE | `boards/{id}/` | admin. `status` (`active`/`on_hold`/`completed`), `start_date`, `due_date`. Archivado = solo lectura |

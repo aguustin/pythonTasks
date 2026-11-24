@@ -8,16 +8,18 @@ import { Brand } from '@/components/brand/Brand'
 import { ToastProvider } from '@/components/ui/Toast'
 import type { OrgRole } from '@/lib/labels'
 
-import { Sidebar } from './Sidebar'
+import { Sidebar, type SidebarProject } from './Sidebar'
 
 /**
  * Marco de la aplicación. Escritorio (≥ 1024 px): menú lateral fijo de 236 px y cada página
  * con su propia barra (PageBar). Tablet y celular: barra superior compacta y menú en cajón.
  */
-export function AppShell({ user, organizations, activeOrgId, children }: {
+export function AppShell({ user, organizations, activeOrgId, projects, moreProjects, children }: {
   user: { full_name: string; email: string }
   organizations: { id: number; name: string; my_role: OrgRole }[]
   activeOrgId: number
+  projects: SidebarProject[]
+  moreProjects: number
   children: React.ReactNode
 }) {
   const pathname = usePathname()
@@ -33,7 +35,7 @@ export function AppShell({ user, organizations, activeOrgId, children }: {
     return () => document.removeEventListener('keydown', onKey)
   }, [drawer])
 
-  const sidebarProps = { organizations, activeOrgId, user }
+  const sidebarProps = { organizations, activeOrgId, user, projects, moreProjects }
 
   return (
     <ToastProvider>

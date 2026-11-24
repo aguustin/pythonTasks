@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from django.db.models import Case, Count, Exists, F, IntegerField, OuterRef, Q, Value, When
+from django.db.models import Case, Count, Exists, F, IntegerField, OuterRef, Prefetch, Q, Value, When
 from django.utils import timezone
 from rest_framework import generics, mixins, status, viewsets
 from rest_framework.decorators import action
@@ -94,7 +94,11 @@ class BoardViewSet(viewsets.ModelViewSet):
         user = self.request.user
         qs = with_progress(visible_boards(user)).select_related('organization', 'created_by').annotate(
             is_favorite=Exists(ProjectFavorite.objects.filter(board=OuterRef('pk'), user=user))
-        )
+        ).prefetch_related(Prefetch(
+            'members',
+            queryset=BoardMember.objects.filter(role=BoardRole.ADMIN).select_related('user'),
+            to_attr='lead_members',
+        ))
         org = self.request.query_params.get('organization')
         if org:
             qs = qs.filter(organization_id=org)

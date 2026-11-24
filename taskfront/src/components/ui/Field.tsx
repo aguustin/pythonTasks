@@ -1,6 +1,20 @@
 import { CircleAlert } from 'lucide-react'
 import type { ComponentProps } from 'react'
 
+/** Área de texto con el mismo estilo que los campos. */
+export function TextArea({ label, name, hint, className = '', ...props }: ComponentProps<'textarea'> & { label: string; name: string; hint?: string }) {
+  const id = props.id ?? `field-${name}`
+  return (
+    <div className={className}>
+      <label htmlFor={id} className="mb-1.5 block text-[13px] font-semibold text-text">{label}</label>
+      <textarea id={id} name={name} rows={3} aria-describedby={hint ? `${id}-hint` : undefined}
+        className="w-full resize-y rounded-[var(--radius-field)] border border-input-border bg-field px-3 py-2 text-sm text-text outline-none transition-[border-color,box-shadow] placeholder:text-subtle hover:border-muted focus-visible:border-focus focus-visible:shadow-[0_0_0_3px_var(--accent-soft)]"
+        {...props} />
+      {hint && <p id={`${id}-hint`} className="mt-1.5 text-[13px] text-subtle">{hint}</p>}
+    </div>
+  )
+}
+
 /**
  * Campo "delineado refinado" del sistema Velatrix One: 40 px, radio 8 px, borde 3:1,
  * foco con borde y halo, error con borde rojo + mensaje con ícono, ayuda debajo.
