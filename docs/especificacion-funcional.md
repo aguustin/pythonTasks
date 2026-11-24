@@ -592,6 +592,10 @@ Objetivo: que un equipo organice proyectos, distribuya tareas y siga el avance, 
 
 ### 8.5 Orden sugerido de implementación del MVP
 
+> **Estado (2026-11-19):** paso 1 completo. Paso 2 completo: Next.js 16.4, BFF con cookie httpOnly cifrada,
+> CSP con nonce, tokens de la identidad, temas, marco con menú lateral y P1–P5 + S11 (perfil). Las secciones
+> Inicio, Mis tareas, Proyectos, Integrantes y Configuración muestran "en construcción" hasta los pasos 3–5.
+
 1. Ajustes de backend (8.4), empezando por cuenta, sesiones y correo.
 2. Base del frontend en Next.js 16: BFF y sesión con cookies httpOnly, tokens de la identidad, temas, layout y autenticación (P1–P5, incluida la recuperación de contraseña).
 3. Organización e integrantes (S9, S10, selector).

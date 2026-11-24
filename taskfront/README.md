@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Velatrix One · Projects — frontend
 
-## Getting Started
+Next.js 16 (App Router, TypeScript, Tailwind CSS 4) que funciona como **BFF**: el navegador solo habla con
+este servidor; este servidor habla con la API de Django. Identidad visual: [`../docs/identidad-projects.md`](../docs/identidad-projects.md).
+Especificación: [`../docs/especificacion-funcional.md`](../docs/especificacion-funcional.md).
 
-First, run the development server:
+## Desarrollo
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env.local   # completar SESSION_SECRET (y BFF_SHARED_SECRET igual que en el backend)
+npm install
+npm run dev                  # http://localhost:3000 — con la API corriendo en :8000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Scripts: `npm run lint` · `npm run typecheck` · `npm test` (unitarios de `src/lib`) · `npm run build`.
+Requiere Node.js 20.9 o superior.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+## Sesión y seguridad
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+| Pieza | Dónde | Qué hace |
+|---|---|---|
+| Cookie de sesión | `src/lib/session/codec.ts` | Access y refresh cifrados con AES-256-GCM (`SESSION_SECRET`). `HttpOnly`, `SameSite=Lax`, `Secure` + prefijo `__Host-` en producción |
+| Capa de datos | `src/lib/server/dal.ts` | Única puerta hacia la API. Verifica la sesión en el servidor en cada página (`apiRead`) y acción (`apiAction`) |
+| Proxy | `src/proxy.ts` | CSP con nonce por solicitud; renueva la sesión antes de que venza el access token; redirecciones de comodidad. **No** es la barrera de seguridad |
+| Cliente de la API | `src/lib/server/django.ts` | Envía el secreto del BFF y la IP real del usuario (límites de intentos). Comparte renovaciones simultáneas para no cerrar la sesión por carreras |
+| Mutaciones | Server Actions (`src/app/**/actions.ts`) | POST con verificación de `Origin` integrada de Next.js (CSRF) |
 
-## Learn More
+Los permisos los aplica la API en cada operación; el frontend solo oculta lo que el rol no permite.
 
-To learn more about Next.js, take a look at the following resources:
+## Estructura
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+src/
+  proxy.ts                    CSP, renovación de sesión, redirecciones
+  app/
+    (auth)/                   iniciar-sesion, crear-cuenta, recuperar-contrasena, restablecer-contrasena/[token]
+    invitacion/[token]/       aceptar invitación (con o sin sesión)
+    bienvenida/               crear la primera organización
+    (workspace)/              app con menú lateral: inicio, mis-tareas, proyectos, integrantes, configuracion, perfil
+    sesion-terminada/         borra la cookie si la API rechazó la sesión durante un render
+  components/                 ui, auth, shell (menú, selector de organización), theme, brand
+  lib/                        sesión, cliente de la API, errores, formularios, tema, textos
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+## Producción
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+`docker build -t velatrix-projects-web .` — imagen con salida `standalone`. Variables: `API_URL`,
+`SESSION_SECRET` (≥ 32 caracteres), `BFF_SHARED_SECRET`. Sin `SESSION_SECRET` el servidor no arranca.

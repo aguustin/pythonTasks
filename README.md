@@ -4,8 +4,9 @@ Gestor de tareas estilo Kanban para empresas, comercios, kioscos y equipos de tr
 Multi-organización, con permisos por tablero, columnas personalizables, responsables,
 prioridades, comentarios e historial de actividad.
 
-> **Estado:** el backend (API v1) está completo y testeado. El frontend (`taskfront/`)
-> todavía usa la API vieja y se va a rehacer siguiendo el branding de Velatrix.
+> **Estado:** backend (API v1) del MVP completo y testeado. Frontend nuevo (`taskfront/`) en construcción:
+> base, sesión segura (BFF), identidad visual, temas y pantallas de acceso listas; las secciones de trabajo
+> llegan en las próximas etapas (ver `docs/especificacion-funcional.md` §8.5).
 
 ---
 
@@ -14,7 +15,8 @@ prioridades, comentarios e historial de actividad.
 **Backend:** Python 3.12 · Django 5.2 LTS · Django REST Framework · SimpleJWT (con blacklist) ·
 PostgreSQL (SQLite en local) · Cloudinary (opcional) · Gunicorn + WhiteNoise · Docker
 
-**Frontend:** Next.js 14 · React 18 · Tailwind CSS · @dnd-kit · Axios
+**Frontend:** Next.js 16 (App Router, TypeScript) · React 19 · Tailwind CSS 4 · Lucide · BFF con sesión en
+cookie httpOnly cifrada (ver [`taskfront/README.md`](taskfront/README.md))
 
 ---
 
@@ -150,7 +152,7 @@ Tests: `python manage.py test tests`
 
 Con Docker (backend + PostgreSQL): `docker compose -f Docker-compose.yml up --build`
 
-Frontend: `cd taskfront && npm install && npm run dev` (pendiente de migrar a la API v1).
+Frontend: `cd taskfront && cp .env.example .env.local && npm install && npm run dev` (ver [`taskfront/README.md`](taskfront/README.md)).
 
 ---
 
@@ -167,4 +169,5 @@ se guardan en disco.
 
 - **Backend:** imagen Docker (gunicorn, aplica migraciones al iniciar). Pensado para Render
   con PostgreSQL administrado. Respeta `PORT` y `WEB_CONCURRENCY`.
-- **Frontend:** Vercel, con `NEXT_PUBLIC_BACK_URL` apuntando al backend.
+- **Frontend:** Vercel o Docker (`taskfront/Dockerfile`), con `API_URL`, `SESSION_SECRET` y `BFF_SHARED_SECRET`.
+  El navegador nunca llama a la API directamente.

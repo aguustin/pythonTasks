@@ -30,6 +30,9 @@ class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['email', 'full_name', 'password', 'password_confirm']
+        # Sin el validador automático de unicidad (distingue mayúsculas y tiene otro texto):
+        # validate_email lo cubre sin distinguir mayúsculas y con el mensaje de producto.
+        extra_kwargs = {'email': {'validators': []}}
 
     def validate_email(self, value):
         value = value.strip().lower()

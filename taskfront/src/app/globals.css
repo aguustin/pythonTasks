@@ -1,58 +1,200 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
 
-:root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+/* dark: sigue la elección del usuario ([data-theme]), no solo el sistema operativo */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/*
+ * Velatrix One · Projects — tokens de diseño.
+ * Base: sistema Velatrix One (neutros grafito, funcionales). Capa de producto: azul eléctrico.
+ * Fuente: docs/identidad-projects.md. Los componentes usan solo estos tokens, nunca HEX directos.
+ * El tema se elige con [data-theme] en <html> (lo fija un script antes del primer render).
+ */
+
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-2: #f1f4f7;
+  --surface-3: #ffffff;
+  --border: #e2e6eb;
+  --border-strong: #cbd2db;
+  --text: #0a0b0d;
+  --text-muted: #4b5563;
+  --text-subtle: #6b7280;
+  --field-bg: #ffffff;
+  --input-border: #878f9c; /* 3,26:1 sobre el campo */
+
+  --accent: #2563eb; /* relleno del botón principal, texto blanco 5,17:1 */
+  --accent-hover: #1d4ed8;
+  --accent-pressed: #1e40af;
+  --on-accent: #ffffff;
+  --accent-text: #1d4ed8; /* 6,70:1 sobre blanco */
+  --accent-indicator: #2563eb;
+  --accent-soft: #dbeafe;
+  --accent-subtle: #eff6ff;
+  --focus-ring: #2563eb;
+
+  --success: #047857;
+  --success-bg: #d1fae5;
+  --warning: #b45309;
+  --warning-bg: #fef3c7;
+  --danger: #dc2626;
+  --danger-bg: #fee2e2;
+  --on-danger: #ffffff; /* 4,83:1 */
+  --progress: #6d28d9;
+  --progress-bg: #ede9fe;
+
+  /* Menú lateral: sigue al tema (rasgo propio de Projects) */
+  --sidebar-bg: #ffffff;
+  --sidebar-border: #e2e6eb;
+  --sidebar-item: #4b5563;
+  --sidebar-item-hover-bg: #f1f4f7;
+  --sidebar-item-hover: #0a0b0d;
+  --sidebar-active: #1d4ed8;
+  --sidebar-active-bar: #2563eb;
+  --sidebar-active-bg: #eff6ff;
+  --sidebar-edition: #1d4ed8;
+  --sidebar-group: #6b7280;
+
+  --shadow-card: 0 1px 2px rgb(10 11 13 / 0.04), 0 1px 3px rgb(10 11 13 / 0.06);
+  --shadow-pop: 0 10px 30px rgb(10 11 13 / 0.12);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
+[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0a0b0d;
+  --surface: #111317;
+  --surface-2: #1a1b1e;
+  --surface-3: #22252a;
+  --border: #26282d;
+  --border-strong: #2e3138;
+  --text: #f8fafc;
+  --text-muted: #9ca3af;
+  --text-subtle: #8b93a1;
+  --field-bg: #0a0b0d;
+  --input-border: #606978; /* 3,55:1 sobre el campo */
+
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-pressed: #1e40af;
+  --on-accent: #ffffff;
+  --accent-text: #60a5fa; /* 7,31:1 sobre #111317 */
+  --accent-indicator: #3b82f6;
+  --accent-soft: rgb(59 130 246 / 0.14);
+  --accent-subtle: rgb(59 130 246 / 0.07);
+  --focus-ring: #60a5fa;
+
+  --success: #34d399;
+  --success-bg: rgb(52 211 153 / 0.12);
+  --warning: #fbbf24;
+  --warning-bg: rgb(251 191 36 / 0.12);
+  --danger: #f87171;
+  --danger-bg: rgb(248 113 113 / 0.12);
+  --on-danger: #0a0b0d; /* blanco sobre #F87171 no alcanza */
+  --progress: #c4b5fd;
+  --progress-bg: rgb(167 139 250 / 0.14);
+
+  --sidebar-bg: #0a0b0d;
+  --sidebar-border: #1a1b1e;
+  --sidebar-item: #9ca3af;
+  --sidebar-item-hover-bg: #1a1b1e;
+  --sidebar-item-hover: #f8fafc;
+  --sidebar-active: #60a5fa;
+  --sidebar-active-bar: #3b82f6;
+  --sidebar-active-bg: rgb(59 130 246 / 0.12);
+  --sidebar-edition: #60a5fa;
+  --sidebar-group: #8b93a1;
+
+  --shadow-card: none;
+  --shadow-pop: 0 10px 30px rgb(0 0 0 / 0.5);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-muted: var(--text-muted);
+  --color-subtle: var(--text-subtle);
+  --color-field: var(--field-bg);
+  --color-input-border: var(--input-border);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-pressed: var(--accent-pressed);
+  --color-on-accent: var(--on-accent);
+  --color-accent-text: var(--accent-text);
+  --color-accent-indicator: var(--accent-indicator);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-focus: var(--focus-ring);
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-on-danger: var(--on-danger);
+  --color-sidebar: var(--sidebar-bg);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-item: var(--sidebar-item);
+  --color-sidebar-item-hover-bg: var(--sidebar-item-hover-bg);
+  --color-sidebar-item-hover: var(--sidebar-item-hover);
+  --color-sidebar-active: var(--sidebar-active);
+  --color-sidebar-active-bar: var(--sidebar-active-bar);
+  --color-sidebar-active-bg: var(--sidebar-active-bg);
+  --color-sidebar-edition: var(--sidebar-edition);
+  --color-sidebar-group: var(--sidebar-group);
+
+  --font-sans: var(--font-inter), 'Segoe UI', system-ui, sans-serif;
+  --font-display: var(--font-space-grotesk), var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+
+  --radius-sm: 6px;
+  --radius-field: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  --shadow-card: var(--shadow-card);
+  --shadow-pop: var(--shadow-pop);
+}
+
+@layer base {
+  html {
+    background: var(--bg);
+    color: var(--text);
+  }
+  body {
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  /* Foco siempre visible: 2 px con separación (WCAG 2.2) */
+  :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: var(--accent-soft);
   }
 }
 
-body {
-  color: rgb(var(--foreground-rgb));
-}
-
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-}
-
-/* Skeleton shimmer */
-@keyframes shimmer {
-  0%   { background-position: -600px 0; }
-  100% { background-position: 600px 0; }
-}
-.skeleton {
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
-  background-size: 1200px 100%;
-  animation: shimmer 1.4s infinite linear;
-  border-radius: 0.5rem;
-}
-
-/* Toast slide-in */
-@keyframes toast-in {
-  from { opacity: 0; transform: translateY(14px) scale(0.96); }
-  to   { opacity: 1; transform: translateY(0)   scale(1);    }
-}
-.toast-in {
-  animation: toast-in 0.22s ease-out forwards;
-}
-
-.ac{
-  top:11rem
-}
-
-@media screen and (max-width:705px) {
-  .ac{
-    top: 7rem;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
   }
 }
