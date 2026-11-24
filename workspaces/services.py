@@ -26,7 +26,7 @@ def remove_membership(membership):
 
     if membership.role == OrgRole.OWNER and owners_count(membership.organization_id) <= 1:
         raise ValidationError(
-            'La organización necesita al menos un dueño. Transferí la propiedad antes de salir.'
+            'La organización necesita al menos un propietario. Nombrá a otra persona como propietaria antes de salir.'
         )
 
     org_id = membership.organization_id
@@ -41,7 +41,7 @@ def remove_membership(membership):
 def change_role(membership, new_role):
     if membership.role == OrgRole.OWNER and new_role != OrgRole.OWNER:
         if owners_count(membership.organization_id) <= 1:
-            raise ValidationError('La organización necesita al menos un dueño.')
+            raise ValidationError('La organización necesita al menos un propietario.')
     membership.role = new_role
     membership.save(update_fields=['role'])
     return membership
@@ -80,7 +80,7 @@ def accept_invitation(token, user):
     if invitation.email and invitation.email.lower() != user.email.lower():
         raise PermissionDenied('Esta invitación es para otro email.')
     if Membership.objects.filter(organization=invitation.organization, user=user).exists():
-        raise ValidationError('Ya sos miembro de esta organización.')
+        raise ValidationError('Ya sos integrante de esta organización.')
 
     membership = Membership.objects.create(
         organization=invitation.organization, user=user, role=invitation.role

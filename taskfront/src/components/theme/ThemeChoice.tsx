@@ -48,7 +48,6 @@ export function ThemeChoice() {
           )
         })}
       </div>
-      <p className="mt-2 text-[13px] text-subtle">Se guarda en este dispositivo y solo para Projects.</p>
     </fieldset>
   )
 }

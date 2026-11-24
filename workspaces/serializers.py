@@ -51,7 +51,7 @@ class InvitationSerializer(serializers.ModelSerializer):
 
     def validate_role(self, value):
         if value == OrgRole.OWNER:
-            raise serializers.ValidationError('No se puede invitar como dueño.')
+            raise serializers.ValidationError('No se puede invitar como propietario.')
         return value
 
 

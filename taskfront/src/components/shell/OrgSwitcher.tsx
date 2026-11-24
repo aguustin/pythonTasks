@@ -23,14 +23,14 @@ export function OrgSwitcher({ organizations, activeId, onSwitch }: { organizatio
         onClick={toggle}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="flex w-full items-center gap-2.5 rounded-[var(--radius-md)] border border-sidebar-border px-2.5 py-2 text-left hover:bg-sidebar-item-hover-bg"
+        className="flex w-full items-center gap-2.5 rounded-[var(--radius-md)] border border-sidebar-border bg-bg px-2 py-1.5 text-left hover:border-border-strong"
       >
-        <span aria-hidden className="grid size-8 shrink-0 place-items-center rounded-[var(--radius-sm)] bg-sidebar-active-bg font-display text-sm font-semibold text-sidebar-active">
+        <span aria-hidden className="grid size-7 shrink-0 place-items-center rounded-[var(--radius-sm)] border border-sidebar-border bg-surface font-display text-[13px] font-semibold text-sidebar-item-hover">
           {active.name.slice(0, 1).toUpperCase()}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold text-sidebar-item-hover">{active.name}</span>
-          <span className="block text-xs text-sidebar-group">{ROLE_LABELS[active.my_role]}</span>
+          <span className="block truncate text-[13px] font-semibold text-sidebar-item-hover">{active.name}</span>
+          <span className="block text-[11px] text-sidebar-group">{ROLE_LABELS[active.my_role]}</span>
         </span>
         <ChevronsUpDown aria-hidden size={16} className="shrink-0 text-sidebar-item" />
         <span className="sr-only">Cambiar de organización</span>

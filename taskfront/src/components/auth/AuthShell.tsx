@@ -13,13 +13,15 @@ export function AuthShell({ title, subtitle, children, footer }: {
 }) {
   return (
     <div className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-bg px-4 py-10">
+      {/* Mesa de trabajo (dirección C), desvanecida hacia los bordes, y la curva de luz de la marca. */}
+      <div aria-hidden className="mesa pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,black_20%,transparent_70%)]" />
       <LightCurve />
       <div className="relative w-full max-w-[420px]">
         <div className="mb-8 flex justify-center">
           <Brand size={40} showDescriptor />
         </div>
-        <main className="rounded-[var(--radius-lg)] border border-border bg-surface p-6 shadow-[var(--shadow-card)] sm:p-8">
-          <h1 className="text-2xl">{title}</h1>
+        <main className="rounded-[var(--radius-lg)] border border-border bg-surface p-6 sm:p-8">
+          <h1 className="text-[22px]">{title}</h1>
           {subtitle && <p className="mt-1.5 text-muted">{subtitle}</p>}
           <div className="mt-6">{children}</div>
         </main>

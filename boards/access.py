@@ -3,7 +3,7 @@ Permisos por tablero.
 
 Permiso efectivo de un usuario en un tablero:
   1. Si no es miembro de la organización del tablero → sin acceso.
-  2. Dueño o admin de la organización → admin del tablero.
+  2. Propietario o admin de la organización → admin del tablero.
   3. Permiso explícito en el tablero (BoardMember) → ese permiso.
   4. Tablero visible para toda la organización → `board.organization_role`.
   5. Si no → sin acceso.

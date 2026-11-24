@@ -34,11 +34,38 @@
 | Marca institucional (logotipo, símbolo V, verde Velatrix reservado a la marca) | Color de producto (azul eléctrico) y sus tokens `--product-*` |
 | Tipografías: Space Grotesk, Inter, JetBrains Mono, y su escala | Personalidad y tono visual (sección 3) |
 | Iconografía Lucide (lineal, ~1,75–2 px, extremos redondeados) | Navegación, dashboard y composición de pantallas (sección 7) |
-| Neutros grafito, colores funcionales, tokens de tema (`--bg`, `--surface`, `--text`…) | Componentes especializados: tablero Kanban, tarjeta de tarea, prioridad, responsables |
+| Colores funcionales (éxito, advertencia, peligro) y la lógica de tokens de tema | **Dirección visual C · Mesa de planificación** (sección 2 bis): neutros con tinte azul, superficies planas, radios chicos, estructura de pantallas |
+| | Componentes especializados: tablero Kanban, tarjeta de tarea, prioridad, responsables |
 | | Menú lateral que sigue al tema (oscuro en oscuro, claro en claro) — en Clinic es oscuro siempre |
-| Componentes base: botones, formularios, tablas, pestañas, foco, `StatusBadge` | Uso de color en columnas, prioridades y gráficos (sección 6) |
+| Reglas de los componentes base (estados, foco, deshabilitado legible, sin opacidad) | Medidas y estilo propios de los componentes (36 px, radio 6/8/10, sin sombra en superficies) |
+| | Uso de color en columnas, prioridades y gráficos (sección 6) |
 | Reglas de accesibilidad (WCAG 2.2 AA) y de uso del color | |
 | Mecanismo de apariencia: Claro / Oscuro / Automático, preferencia por producto | |
+
+---
+
+## 2 bis. Dirección visual C · "Mesa de planificación" (aprobada 2026-11-24)
+
+**Idea:** Projects es el lugar donde el trabajo se despliega y se mide. Se eligió entre tres direcciones
+(A · Foco, B · Lienzo, C · Mesa de planificación) para que Projects no se vea como Clinic con otro color.
+
+| Aspecto | Clinic (sistema base) | Projects · dirección C |
+|---|---|---|
+| Neutros | Grafito neutro `#0A0B0D` / `#111317` / `#F8FAFC` | Grafito con tinte azul: claro `#F5F7FA` · `#FFFFFF` · `#EEF2F7` · líneas `#DCE2EA`; oscuro `#0A0D14` · `#10141D` · `#161B26` · líneas `#232A38` |
+| Superficies | Tarjetas con borde + sombra, radio 14 | Paneles planos con línea fina, radio 8; sombra solo en capas flotantes (diálogos, menús, avisos) |
+| Radios | 6 / 10 / 14 | 6 (campos, botones) / 8 (paneles) / 10 (diálogos) |
+| Controles | 40 px | 36 px, texto 13 px |
+| Página | Título grande + tarjetas | **Barra de página** fija: migas, título, pestañas de vista (subrayado azul) y acción principal |
+| Listas | Tarjetas o tablas con mucho aire | Filas de 38–48 px con divisores y encabezado de columnas en monoespaciada |
+| Navegación | Grupos Operación / Gestión / Configuración | Mi trabajo · Proyectos (con avance) · Integrantes y Configuración al pie |
+| Datos | Inter tabular | Fechas, contadores e identificadores en **JetBrains Mono**, como instrumentos |
+| Motivo | Curvas de luz | **Trama de puntos** (`.mesa`, 14 px) detrás del tablero y de los estados vacíos; curva de luz solo en acceso |
+
+**Reglas:**
+- El azul sigue reservado a acción, selección y foco. Las etiquetas de sección van en monoespaciada, 10,5 px, mayúsculas, interletrado 0,12 em, en `--text-subtle`.
+- Las insignias (rol, estado) son píldoras con solo borde, sin relleno de color.
+- La trama de puntos usa `--dot`, siempre de bajo contraste, y nunca detrás de texto largo.
+- En celular: barra superior compacta con el menú en cajón (la barra inferior llega en el incremento 3.5).
 
 ---
 
@@ -103,7 +130,7 @@ Nunca texto `#3B82F6` sobre blanco (3,68:1), ni `#2563EB` sobre `#DBEAFE` para t
 
 ## 5. Temas
 
-Projects usa el mecanismo de apariencia del sistema Velatrix One **sin modificarlo**. Claro, Oscuro y Automático; por defecto, Automático. La preferencia se guarda en `velatrix.projects.theme` y se aplica antes del primer render. Neutros, funcionales y tokens de tema se heredan; solo cambia la capa de acento:
+Projects usa el mecanismo de apariencia del sistema Velatrix One **sin modificarlo**. Claro, Oscuro y Automático; por defecto, Automático. La preferencia se guarda en `velatrix.projects.theme` y se aplica antes del primer render. Los colores funcionales se heredan; los neutros son propios (sección 2 bis). Capa de acento:
 
 | Token semántico | Claro | Oscuro |
 |---|---|---|
@@ -112,23 +139,23 @@ Projects usa el mecanismo de apariencia del sistema Velatrix One **sin modificar
 | `--on-accent` | `#FFFFFF` | `#FFFFFF` |
 | `--accent-text` | `#1D4ED8` | `#60A5FA` |
 | `--accent-indicator` (barras, bordes, casillas, pestañas) | `#2563EB` | `#3B82F6` |
-| `--accent-soft` / `--accent-subtle` | `#DBEAFE` / `#EFF6FF` | `rgb(59 130 246 / .14)` / `/ .07` |
+| `--accent-soft` / `--accent-subtle` | `#E6EEFC` / `#F0F5FE` | `rgb(59 130 246 / .14)` / `/ .07` |
 | `--focus-ring` | `#2563EB` | `#60A5FA` |
 
-- **Tema claro:** fondo `#F8FAFC`, superficies blancas con sombra suave, bordes `#E2E6EB`. El azul aparece en la acción principal, la selección y el foco.
-- **Tema oscuro:** fondo `#0A0B0D`, superficies grafito `#111317`/`#1A1B1E`, texto `#F8FAFC`. El texto azul se aclara a `#60A5FA` para que no fatigue.
+- **Tema claro:** fondo `#F5F7FA`, superficies blancas planas, líneas `#DCE2EA`. El azul aparece en la acción principal, la selección y el foco.
+- **Tema oscuro:** fondo `#0A0D14`, superficies `#10141D`/`#161B26` (grafito con tinte azul), texto `#E6EAF2`. El texto azul se aclara a `#60A5FA` para que no fatigue.
 - **Menú lateral — sigue al tema (rasgo propio de Projects).** Es oscuro en tema oscuro y tiene una versión clara en tema claro. En Automático acompaña al sistema operativo. El ancla de marca la siguen dando el ícono oficial y el nombre de la edición.
 
 | Menú lateral | Claro | Oscuro |
 |---|---|---|
-| Fondo | `#FFFFFF` + borde derecho `#E2E6EB` | `#0A0B0D` |
-| Texto de ítems / ícono | `#4B5563` | `#9CA3AF` |
-| Hover de ítem | fondo `#F1F4F7`, texto `#0A0B0D` | fondo `#1A1B1E`, texto `#F8FAFC` |
-| Ítem activo: texto | `#1D4ED8` (6,16:1 sobre `#EFF6FF`) | `#60A5FA` (7,74:1 sobre `#0A0B0D`) |
-| Ítem activo: barra izquierda 3 px | `#2563EB` | `#3B82F6` |
-| Ítem activo: fondo | `#EFF6FF` | `rgb(59 130 246 / .12)` |
-| Nombre de la edición "Projects" | `#1D4ED8` (6,70:1) | `#60A5FA` (7,74:1) |
-| Etiquetas de grupo | `#6B7280` | `#8B93A1` |
+| Fondo | `#FFFFFF` + borde derecho `#DCE2EA` | `#0C1018` |
+| Texto de ítems / ícono | `#4A5568` | `#A3ADBF` |
+| Hover de ítem | fondo `#F1F4F8`, texto `#0B1220` | fondo `#161B26`, texto `#E6EAF2` |
+| Ítem activo: texto | `#1D4ED8` (5,74:1 sobre `#E6EEFC`) | `#60A5FA` (7,49:1 sobre `#0C1018`) |
+| Ítem activo: barra izquierda 2 px | `#2563EB` | `#3B82F6` |
+| Ítem activo: fondo | `#E6EEFC` | `rgb(59 130 246 / .13)` |
+| Nombre de la edición "Projects" | `#1D4ED8` (6,70:1) | `#60A5FA` (7,49:1) |
+| Etiquetas de grupo (monoespaciada) | `#626C7E` | `#8893A7` |
 
 ---
 
@@ -198,8 +225,8 @@ Avatares con iniciales sobre fondo neutro (`--surface-2`). No se colorean por pe
 4. **Contexto organizacional explícito.** Como un usuario puede estar en varias organizaciones, la organización activa siempre es visible y se cambia con un selector.
 5. **Los permisos se reflejan en la interfaz.** Lo que no se puede hacer no se ofrece; un lector ve el tablero sin controles de edición, pero puede mover sus tareas asignadas.
 
-### Navegación (propuesta)
-Menú lateral con el **selector de organización** arriba; luego Inicio, Mis tareas, Proyectos (con acceso rápido a los recientes y favoritos, con su punto de color) e Integrantes; Calendario y Reportes cuando existan; y Configuración al pie. La actividad vive dentro de cada proyecto y en Inicio. Detalle completo en [`especificacion-funcional.md`](especificacion-funcional.md) §4. Difiere de Clinic, que agrupa en Operación / Gestión / Configuración. Los colores del menú en cada tema están en la sección 5.
+### Navegación (dirección C, aprobada)
+Menú lateral de 236 px: marca y **selector de organización** arriba; grupo **Mi trabajo** (Inicio, Mis tareas); grupo **Proyectos**, que es la navegación principal (cada proyecto con su cuadrado de color y su barra de avance, favoritos primero, y "Todos los proyectos"); al pie Integrantes, Configuración y el usuario. Calendario y Reportes cuando existan. La actividad vive dentro de cada proyecto y en Inicio. Detalle completo en [`especificacion-funcional.md`](especificacion-funcional.md) §4. Difiere de Clinic, que agrupa en Operación / Gestión / Configuración. Los colores del menú en cada tema están en la sección 5.
 
 **Vocabulario:** "Proyecto" (nunca "tablero" ni "lista"), "Tarea", "Columna", "Responsable", "Integrantes" (las personas de la organización), "Equipo" (un grupo de integrantes; Etapa 2), "Prioridad", "Vencimiento".
 
@@ -220,7 +247,7 @@ Título (Inter 14/600), prioridad (ícono + texto), insignia de vencimiento, ava
 | Workshop | Talleres y servicios técnicos | Naranja (propuesto) | — sin cambios — |
 | **Projects** | **Proyectos y equipos** | **Azul eléctrico `#3B82F6`** | **Organizado y dinámico; texto blanco sobre azul; el tablero como lienzo; menú que sigue al tema** |
 
-Projects se reconoce como Velatrix por el fondo grafito, las tipografías, los íconos y el símbolo V. Se distingue por el azul, por el menú lateral que acompaña al tema, por la navegación centrada en organizaciones y proyectos y por el tablero Kanban horizontal como pantalla protagonista.
+Projects se reconoce como Velatrix por las tipografías, los íconos, el símbolo V y el tema oscuro grafito. Se distingue por la dirección C: neutros con tinte azul, superficies planas sin sombra, radios chicos, proyectos como navegación con su avance, barra de página con pestañas, datos en monoespaciada, la trama de la mesa de trabajo y el tablero Kanban horizontal como pantalla protagonista.
 
 ---
 

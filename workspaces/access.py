@@ -22,17 +22,17 @@ def require_membership(user, organization_id):
 
 def require_manager(membership):
     if not membership.is_manager:
-        raise PermissionDenied('Solo el dueño o un administrador de la organización puede hacer esto.')
+        raise PermissionDenied('Solo un propietario o un administrador de la organización puede hacer esto.')
 
 
 def require_owner(membership):
     if membership.role != OrgRole.OWNER:
-        raise PermissionDenied('Solo el dueño de la organización puede hacer esto.')
+        raise PermissionDenied('Solo un propietario de la organización puede hacer esto.')
 
 
 def can_manage_member(actor: Membership, target: Membership) -> bool:
     """
-    Los dueños gestionan a cualquiera. Los administradores solo a miembros comunes.
+    Los propietarios gestionan a cualquiera. Los administradores solo a integrantes comunes.
     Nadie se gestiona a sí mismo por esta vía (para irse está `leave`).
     """
     if actor.pk == target.pk:

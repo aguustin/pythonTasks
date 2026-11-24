@@ -4,7 +4,7 @@ import type { ComponentProps } from 'react'
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
 
 const BASE =
-  'inline-flex h-10 items-center justify-center gap-2 rounded-[var(--radius-field)] px-4 text-sm font-semibold transition-colors ' +
+  'inline-flex h-9 items-center justify-center gap-2 rounded-[var(--radius-field)] px-3.5 text-[13px] font-semibold transition-colors ' +
   // Deshabilitado sin opacidad general: sigue siendo legible (sistema Velatrix One).
   'disabled:cursor-not-allowed disabled:border-border disabled:bg-surface-2 disabled:text-subtle'
 

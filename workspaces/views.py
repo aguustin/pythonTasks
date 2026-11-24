@@ -87,14 +87,14 @@ class MembershipViewSet(
     def _check_can_manage(self, target):
         require_manager(self.my_membership)
         if not can_manage_member(self.my_membership, target):
-            raise PermissionDenied('No tenés permiso para gestionar a este miembro.')
+            raise PermissionDenied('No tenés permiso para gestionar a este integrante.')
 
     def perform_update(self, serializer):
         target = serializer.instance
         self._check_can_manage(target)
         new_role = serializer.validated_data.get('role', target.role)
         if new_role == OrgRole.OWNER and self.my_membership.role != OrgRole.OWNER:
-            raise PermissionDenied('Solo un dueño puede nombrar a otro dueño.')
+            raise PermissionDenied('Solo un propietario puede nombrar a otro propietario.')
         was_manager = target.is_manager
         change_role(target, new_role)
         if was_manager and not target.is_manager:
@@ -132,7 +132,7 @@ class InvitationViewSet(
     mixins.DestroyModelMixin,
     viewsets.GenericViewSet,
 ):
-    """Invitaciones de una organización (solo dueños y administradores)."""
+    """Invitaciones de una organización (solo propietarios y administradores)."""
 
     serializer_class = InvitationSerializer
 
@@ -153,7 +153,7 @@ class InvitationViewSet(
         email = serializer.validated_data.get('email')
         org_id = self.kwargs['org_pk']
         if email and Membership.objects.filter(organization_id=org_id, user__email__iexact=email).exists():
-            raise ValidationError({'email': 'Esa persona ya es miembro de la organización.'})
+            raise ValidationError({'email': 'Esa persona ya es integrante de la organización.'})
         invitation = serializer.save(organization_id=org_id, created_by=self.request.user)
         self.email_sent = send_invitation_email(invitation) if invitation.email else None
 

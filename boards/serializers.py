@@ -94,7 +94,7 @@ class BoardMemberSerializer(serializers.ModelSerializer):
         user = attrs.get('user')
         if self.instance is None:
             if not Membership.objects.filter(organization_id=board.organization_id, user=user).exists():
-                raise serializers.ValidationError({'user_id': 'El usuario no es miembro de la organización.'})
+                raise serializers.ValidationError({'user_id': 'La persona no es integrante de la organización.'})
             if BoardMember.objects.filter(board=board, user=user).exists():
                 raise serializers.ValidationError({'user_id': 'El usuario ya es miembro del tablero.'})
         elif user is not None and user.pk != self.instance.user_id:

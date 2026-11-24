@@ -25,7 +25,7 @@ export function Field({
         name={name}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
-        className={`h-10 w-full rounded-[var(--radius-field)] border bg-field px-3 text-sm text-text shadow-[inset_0_1px_1px_rgb(10_11_13/0.04)] outline-none transition-[border-color,box-shadow] placeholder:text-subtle hover:border-muted focus-visible:border-focus focus-visible:shadow-[0_0_0_3px_var(--accent-soft)] focus-visible:outline-none ${
+        className={`h-9 w-full rounded-[var(--radius-field)] border bg-field px-3 text-sm text-text outline-none transition-[border-color,box-shadow] placeholder:text-subtle hover:border-muted focus-visible:border-focus focus-visible:shadow-[0_0_0_3px_var(--accent-soft)] focus-visible:outline-none ${
           error
             ? 'border-danger focus-visible:border-danger focus-visible:shadow-[0_0_0_3px_var(--danger-bg)]'
             : 'border-input-border'
