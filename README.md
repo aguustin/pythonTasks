@@ -146,7 +146,8 @@ El link de invitación es `{FRONTEND_URL}/invitacion/{token}`.
 proyecto, el proyecto pasa a privado, baja de rol en la organización), deja de ser responsable de esas tareas y
 queda registrado en la actividad (`assignees_removed`). Las vistas previas sirven para avisar antes de confirmar.
 
-**Tarea:** `title`, `description`, `priority` (`low`/`medium`/`high`/`urgent`), `due_date`,
+**Tarea:** `title`, `description`, `priority` (`low`/`medium`/`high`/`urgent`), `start_date` (opcional, no posterior
+al vencimiento), `due_date`,
 `column`, `assignee_ids` (escritura) / `assignees` (lectura), `label_ids` / `labels` (del mismo proyecto),
 `checklist_total` y `checklist_done` (lectura), `repeat` (`none`/`daily`/`weekdays`/`weekly`/`monthly`).
 Para cambiar de columna se usa `move/`.

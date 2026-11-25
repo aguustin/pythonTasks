@@ -251,10 +251,14 @@ def spawn_next_occurrence(task, actor):
     column = task.board.columns.filter(is_done=False).order_by('position').first()
     if column is None:
         return None
+    due = next_due_date(task.due_date, timezone.localdate(), task.repeat)
+    start = None
+    if task.start_date and task.due_date:
+        start = due - (task.due_date - task.start_date)  # misma duración
     nxt = Task.objects.create(
         board=task.board, column=column, position=next_position(column), created_by=actor,
         title=task.title, description=task.description, priority=task.priority, repeat=task.repeat,
-        due_date=next_due_date(task.due_date, timezone.localdate(), task.repeat),
+        start_date=start, due_date=due,
     )
     nxt.assignees.set(task.assignees.all())
     nxt.followers.set(task.followers.all())
@@ -298,6 +302,7 @@ def duplicate_board(source, user, *, title, include_tasks=False, include_members
             copy = Task.objects.create(
                 board=board, column=columns[t.column_id], position=t.position, created_by=user,
                 title=t.title, description=t.description, priority=t.priority, repeat=t.repeat,
+                start_date=t.start_date if keep_dates else None,
                 due_date=t.due_date if keep_dates else None,
             )
             copy.assignees.set([u for u in t.assignees.all() if board_role(u, board) is not None])

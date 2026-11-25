@@ -19,7 +19,7 @@ import { LabelPicker } from './Labels'
 import { Comments } from './Comments'
 import { PriorityTag } from './TaskCard'
 
-export type TaskChanges = Partial<{ title: string; description: string; priority: Priority; due_date: string | null; assignee_ids: number[]; repeat: Repeat; label_ids: number[] }>
+export type TaskChanges = Partial<{ title: string; description: string; priority: Priority; start_date: string | null; due_date: string | null; assignee_ids: number[]; repeat: Repeat; label_ids: number[] }>
 
 type Status = 'idle' | 'saving' | 'saved' | 'error'
 
@@ -243,6 +243,25 @@ export function TaskPanel({ projectId, task, missing, detail, labels, onCreateLa
                     <ChevronDown aria-hidden size={16} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-subtle" />
                   </span>
                 ) : shown.priority === 'medium' ? <span>Media</span> : <PriorityTag priority={shown.priority} />}
+              </dd>
+
+              <dt className="text-muted"><label htmlFor="task-start">Inicio</label></dt>
+              <dd className="flex min-w-0 flex-wrap items-center gap-2">
+                {canEdit ? (
+                  <>
+                    <input id="task-start" type="date" value={shown.start_date ?? ''} max={shown.due_date ?? undefined}
+                      className={`${control} max-w-44 font-mono`}
+                      onChange={(e) => {
+                        const v = e.target.value || null
+                        if (v && shown.due_date && v > shown.due_date) return toast({ tone: 'error', message: 'El inicio no puede ser posterior al vencimiento.' })
+                        if (v !== (shown.start_date ?? null)) void save({ start_date: v }, { start_date: v })
+                      }} />
+                    {shown.start_date && (
+                      <button type="button" onClick={() => void save({ start_date: null }, { start_date: null })}
+                        className="h-8 rounded-[var(--radius-sm)] px-2 text-[12px] text-muted hover:bg-surface-2 hover:text-text">Quitar</button>
+                    )}
+                  </>
+                ) : <span className="font-mono">{shown.start_date ? dueLabel(shown.start_date, today) : '—'}</span>}
               </dd>
 
               <dt className="text-muted"><label htmlFor="task-due">Vencimiento</label></dt>

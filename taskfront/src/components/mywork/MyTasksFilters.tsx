@@ -78,7 +78,10 @@ export function MyTasksFilters({ organizations, activeOrgId, projects, groupLabe
         </button>
       )}
       {any && (
-        <button type="button" onClick={() => startTransition(() => router.replace(pathname, { scroll: false }))}
+        <button type="button" onClick={() => startTransition(() => {
+          const vista = params.get('vista') // se queda en Lista o Calendario
+          router.replace(vista ? `${pathname}?vista=${vista}` : pathname, { scroll: false })
+        })}
           className="inline-flex h-8 items-center gap-1 rounded-[var(--radius-sm)] px-2 text-[13px] text-muted hover:bg-surface-2 hover:text-text">
           <X aria-hidden size={14} /> Limpiar filtros
         </button>

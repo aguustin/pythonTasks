@@ -216,6 +216,7 @@ export type TaskChanges = Partial<{
   title: string
   description: string
   priority: Priority
+  start_date: string | null
   due_date: string | null
   assignee_ids: number[]
   repeat: Repeat
@@ -237,6 +238,10 @@ export async function updateTask(taskId: number, changes: TaskChanges): Promise<
   if (changes.priority !== undefined) {
     if (!PRIORITY_VALUES.includes(changes.priority)) return { ok: false, error: 'Prioridad inválida.' }
     body.priority = changes.priority
+  }
+  if (changes.start_date !== undefined) {
+    if (!isDate(changes.start_date || null)) return { ok: false, error: 'Fecha inválida.' }
+    body.start_date = changes.start_date || null
   }
   if (changes.due_date !== undefined) {
     if (!isDate(changes.due_date || null)) return { ok: false, error: 'Fecha inválida.' }

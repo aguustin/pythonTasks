@@ -16,6 +16,8 @@ export default async function ProjectLayout({ children, params }: LayoutProps<'/
         crumbs={[{ label: 'Proyectos', href: '/proyectos' }]}
         tabs={[
           { key: 'tablero', label: 'Tablero', href: base },
+          { key: 'lista', label: 'Lista', href: `${base}/lista` },
+          { key: 'calendario', label: 'Calendario', href: `${base}/calendario` },
           { key: 'actividad', label: 'Actividad', href: `${base}/actividad` },
           ...(isLeader(project) ? [{ key: 'configuracion', label: 'Configuración', href: `${base}/configuracion` }] : []),
         ]}

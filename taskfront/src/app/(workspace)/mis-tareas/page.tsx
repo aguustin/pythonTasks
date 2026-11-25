@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 import { MyTaskRow } from '@/components/mywork/MyTaskRow'
+import { MyTasksCalendar } from '@/components/mywork/MyTasksCalendar'
 import { MyTasksFilters } from '@/components/mywork/MyTasksFilters'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { PageBar, PageBody } from '@/components/ui/PageHeader'
@@ -42,14 +43,31 @@ export default async function MyTasksPage({ searchParams }: PageProps<'/mis-tare
   const orgNames = new Map(organizations.map((o) => [o.id, o.name]))
   const openCount = tasks.filter((t) => !t.is_done).length
 
+  // Lista o calendario, conservando los filtros (y el mes, en el calendario).
+  const calendar = one(sp.vista) === 'calendario'
+  const keep = (vista: 'lista' | 'calendario') => {
+    const p = new URLSearchParams()
+    for (const [k, v] of Object.entries(sp)) if (typeof v === 'string' && k !== 'vista' && (vista === 'calendario' || k !== 'mes')) p.set(k, v)
+    if (vista === 'calendario') p.set('vista', 'calendario')
+    const qs = p.toString()
+    return qs ? `?${qs}` : ''
+  }
+
   return (
     <>
-      <PageBar title="Mis tareas" meta={`${openCount} ${openCount === 1 ? 'abierta' : 'abiertas'}`} />
-      <PageBody className="max-w-4xl">
+      <PageBar title="Mis tareas" meta={`${openCount} ${openCount === 1 ? 'abierta' : 'abiertas'}`}
+        tabs={[
+          { key: 'lista', label: 'Lista', href: `/mis-tareas${keep('lista')}` },
+          { key: 'calendario', label: 'Calendario', href: `/mis-tareas${keep('calendario')}` },
+        ]}
+        activeTab={calendar ? 'calendario' : 'lista'} />
+      <PageBody className={calendar ? 'max-w-6xl' : 'max-w-4xl'}>
         <MyTasksFilters organizations={organizations.map(({ id, name }) => ({ id, name }))} activeOrgId={active!.id}
           projects={projects} groupLabel={due ? BUCKETS.find((b) => b.key === due)!.label : null} />
 
-        {groups.length === 0 ? (
+        {calendar ? (
+          <MyTasksCalendar tasks={shown} today={today} />
+        ) : groups.length === 0 ? (
           tasks.length === 0 ? (
             <EmptyState icon={CircleCheckBig} title="Estás al día">
               No tenés tareas asignadas{organization === 'all' ? '' : ' en esta organización'}. Cuando alguien te asigne una, aparece acá.

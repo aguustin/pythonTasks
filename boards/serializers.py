@@ -159,7 +159,7 @@ class TaskSerializer(serializers.ModelSerializer):
     class Meta:
         model = Task
         fields = [
-            'id', 'board', 'column', 'title', 'description', 'priority', 'due_date',
+            'id', 'board', 'column', 'title', 'description', 'priority', 'start_date', 'due_date',
             'assignees', 'assignee_ids', 'position', 'created_by', 'repeat',
             'created_at', 'updated_at', 'completed_at', 'comments_count',
             'checklist_total', 'checklist_done', 'labels', 'label_ids',
@@ -178,6 +178,13 @@ class TaskSerializer(serializers.ModelSerializer):
         if value.board_id != self.context['board'].pk:
             raise serializers.ValidationError('La columna no pertenece a este tablero.')
         return value
+
+    def validate(self, attrs):
+        start = attrs.get('start_date', self.instance.start_date if self.instance else None)
+        due = attrs.get('due_date', self.instance.due_date if self.instance else None)
+        if start and due and start > due:
+            raise serializers.ValidationError({'start_date': 'El inicio no puede ser posterior al vencimiento.'})
+        return attrs
 
     def validate_label_ids(self, labels):
         board = self.context['board']

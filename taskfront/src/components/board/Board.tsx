@@ -33,11 +33,15 @@ import {
   type BoardFilters, type ChecklistItem, type Column, type Comment, type Label, type Person, type PersonWithRole, type Task,
 } from '@/lib/tasks'
 
+import { MonthCalendar } from '@/components/calendar/MonthCalendar'
+import { parseMonth } from '@/lib/calendar'
+
 import { BoardToolbar } from './BoardToolbar'
 import { AddColumn, ColumnHeader, DeleteColumnDialog, MAX_COLUMNS } from './ColumnTools'
 import { QuickAdd } from './QuickAdd'
 import { nextLabelColor } from './Labels'
 import { CardBody, TaskCard } from './TaskCard'
+import { TaskListView } from './TaskListView'
 import { TaskPanel, type TaskChanges } from './TaskPanel'
 
 type Groups = Record<number, number[]>
@@ -60,7 +64,7 @@ const attempt = <T,>(fn: () => Promise<ActionResult<T>>): Promise<ActionResult<T
  *   avance del proyecto, columnas y menú lateral).
  * - Los filtros solo ocultan tarjetas: el orden se calcula siempre sobre la columna completa.
  */
-export function Board({ projectId, columns, tasks, role, me, archived, today, people, detail, labels: serverLabels }: {
+export function Board({ projectId, columns, tasks, role, me, archived, today, people, detail, labels: serverLabels, view = 'board', projectColor = '' }: {
   projectId: number
   columns: Column[]
   tasks: Task[]
@@ -73,6 +77,9 @@ export function Board({ projectId, columns, tasks, role, me, archived, today, pe
   detail: { taskId: number; comments: Comment[]; history: Activity[]; following: boolean; checklist: ChecklistItem[] } | null
   /** Etiquetas del proyecto. */
   labels: Label[]
+  /** Tablero (por defecto), Lista o Calendario: mismas tareas, filtros y panel. */
+  view?: 'board' | 'list' | 'calendar'
+  projectColor?: string
 }) {
   const router = useRouter()
   const toast = useToast()
@@ -390,6 +397,21 @@ export function Board({ projectId, columns, tasks, role, me, archived, today, pe
   const total = columns.reduce((n, c) => n + (groups[c.id] ?? []).length, 0)
   const visibleCount = columns.reduce((n, c) => n + visibleIds(c.id, groups[c.id] ?? []).length, 0)
 
+  // Lista y calendario: las tareas visibles (con filtros) y su columna actual.
+  const visibleRows = columns.flatMap((c) => visibleIds(c.id, groups[c.id] ?? []).map((id) => ({ task: byId.get(id)!, column: c })))
+  const calendarTasks = visibleRows.map(({ task, column }) => ({
+    id: task.id, title: task.title, color: projectColor, done: column.is_done,
+    start_date: task.start_date ?? null, due_date: task.due_date,
+  }))
+  const month = parseMonth(searchParams.get('mes'), today)
+  const setMonth = (m: string) => {
+    const params = new URLSearchParams(searchParams.toString())
+    if (m === today.slice(0, 7)) params.delete('mes')
+    else params.set('mes', m)
+    const qs = params.toString()
+    window.history.replaceState(null, '', qs ? `${pathname}?${qs}` : pathname)
+  }
+
   const openTaskData = openId !== null ? byId.get(openId) ?? null : null
   const openColumn = openId !== null ? columnOf.get(openId) ?? null : null
   // El del servidor (más fresco después de cada refresco) tiene prioridad sobre el pedido aparte.
@@ -398,71 +420,79 @@ export function Board({ projectId, columns, tasks, role, me, archived, today, pe
   return (
     <>
       <BoardToolbar filters={filters} onChange={setFilters} people={people} labels={labels} visible={visibleCount} total={total} />
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCorners}
-        onDragStart={onDragStart}
-        onDragOver={onDragOver}
-        onDragEnd={onDragEnd}
-        onDragCancel={finishDrag}
-        accessibility={{
-          announcements,
-          screenReaderInstructions: {
-            draggable: 'Para mover una tarea, presioná espacio o Enter. Con las flechas la llevás a otra posición o columna; espacio la suelta y Escape cancela.',
-          },
-        }}
-      >
-        <div className="mesa -mx-4 flex min-h-[calc(100dvh-11rem)] snap-x snap-mandatory items-start gap-3 overflow-x-auto px-4 pb-24 pt-1 sm:-mx-5 sm:snap-none sm:px-5"
-          role="region" aria-label="Tablero">
-          {columns.map((column, index) => {
-            const all = shown[column.id] ?? []
-            const ids = visibleIds(column.id, all)
-            return (
-              <BoardColumn key={column.id} column={column} count={ids.length} hidden={all.length - ids.length}
-                header={
-                  <ColumnHeader column={column} index={index} total={columns.length} canManage={canManageColumns}
-                    count={filtering ? `${ids.length}/${all.length}` : String(all.length)}
-                    onRename={(name) => columnOp(() => updateColumn(projectId, column.id, { name }))}
-                    onToggleDone={() => void columnOp(
-                      () => updateColumn(projectId, column.id, { is_done: !column.is_done }),
-                      column.is_done ? `«${column.name}» ya no cuenta como terminadas.` : `Las tareas en «${column.name}» cuentan como terminadas.`,
-                    ).then((res) => { if (!res.ok) toast({ tone: 'error', message: res.error }) })}
-                    onShift={(delta) => shiftColumn(column.id, delta)}
-                    onDelete={() => setDeleting(column)} />
-                }
-                footer={canAdd ? (
-                  <QuickAdd columnName={column.name} onAdd={async (text) => {
-                    const res = await addTask(column.id, text)
-                    if (res.ok && !visibleTask(res.data, column.id)) toast({ tone: 'info', message: 'La tarea se creó, pero los filtros activos la ocultan.' })
-                    return res
-                  }} />
-                ) : null}>
-                <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-                  {ids.map((id) => {
-                    const task = byId.get(id)
-                    if (!task) return null
-                    return (
-                      <TaskCard key={id} task={task} done={column.is_done} today={today} canMove={movable(task)}
-                        columns={columns} currentColumn={column.id} onMoveTo={stableMoveTo}
-                        href={taskHref(id)} selected={openId === id} onOpen={stableOpen} />
-                    )
-                  })}
-                </SortableContext>
-              </BoardColumn>
-            )
-          })}
-          {canManageColumns && columns.length < MAX_COLUMNS && (
-            <AddColumn onAdd={(name) => columnOp(() => createColumn(projectId, name), `Columna «${name}» creada.`)} />
-          )}
-        </div>
-        <DragOverlay dropAnimation={{ duration: 160, easing: 'ease-out' }}>
-          {activeTask ? (
-            <div className="w-[272px] rotate-[1.5deg] cursor-grabbing rounded-[var(--radius-md)] border border-accent bg-surface px-3 py-2.5 shadow-[var(--shadow-pop)]">
-              <CardBody task={activeTask} done={Boolean(activeDone)} today={today} />
-            </div>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+      {view === 'board' ? (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={onDragStart}
+          onDragOver={onDragOver}
+          onDragEnd={onDragEnd}
+          onDragCancel={finishDrag}
+          accessibility={{
+            announcements,
+            screenReaderInstructions: {
+              draggable: 'Para mover una tarea, presioná espacio o Enter. Con las flechas la llevás a otra posición o columna; espacio la suelta y Escape cancela.',
+            },
+          }}
+        >
+          <div className="mesa -mx-4 flex min-h-[calc(100dvh-11rem)] snap-x snap-mandatory items-start gap-3 overflow-x-auto px-4 pb-24 pt-1 sm:-mx-5 sm:snap-none sm:px-5"
+            role="region" aria-label="Tablero">
+            {columns.map((column, index) => {
+              const all = shown[column.id] ?? []
+              const ids = visibleIds(column.id, all)
+              return (
+                <BoardColumn key={column.id} column={column} count={ids.length} hidden={all.length - ids.length}
+                  header={
+                    <ColumnHeader column={column} index={index} total={columns.length} canManage={canManageColumns}
+                      count={filtering ? `${ids.length}/${all.length}` : String(all.length)}
+                      onRename={(name) => columnOp(() => updateColumn(projectId, column.id, { name }))}
+                      onToggleDone={() => void columnOp(
+                        () => updateColumn(projectId, column.id, { is_done: !column.is_done }),
+                        column.is_done ? `«${column.name}» ya no cuenta como terminadas.` : `Las tareas en «${column.name}» cuentan como terminadas.`,
+                      ).then((res) => { if (!res.ok) toast({ tone: 'error', message: res.error }) })}
+                      onShift={(delta) => shiftColumn(column.id, delta)}
+                      onDelete={() => setDeleting(column)} />
+                  }
+                  footer={canAdd ? (
+                    <QuickAdd columnName={column.name} onAdd={async (text) => {
+                      const res = await addTask(column.id, text)
+                      if (res.ok && !visibleTask(res.data, column.id)) toast({ tone: 'info', message: 'La tarea se creó, pero los filtros activos la ocultan.' })
+                      return res
+                    }} />
+                  ) : null}>
+                  <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+                    {ids.map((id) => {
+                      const task = byId.get(id)
+                      if (!task) return null
+                      return (
+                        <TaskCard key={id} task={task} done={column.is_done} today={today} canMove={movable(task)}
+                          columns={columns} currentColumn={column.id} onMoveTo={stableMoveTo}
+                          href={taskHref(id)} selected={openId === id} onOpen={stableOpen} />
+                      )
+                    })}
+                  </SortableContext>
+                </BoardColumn>
+              )
+            })}
+            {canManageColumns && columns.length < MAX_COLUMNS && (
+              <AddColumn onAdd={(name) => columnOp(() => createColumn(projectId, name), `Columna «${name}» creada.`)} />
+            )}
+          </div>
+          <DragOverlay dropAnimation={{ duration: 160, easing: 'ease-out' }}>
+            {activeTask ? (
+              <div className="w-[272px] rotate-[1.5deg] cursor-grabbing rounded-[var(--radius-md)] border border-accent bg-surface px-3 py-2.5 shadow-[var(--shadow-pop)]">
+                <CardBody task={activeTask} done={Boolean(activeDone)} today={today} />
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+      ) : view === 'list' ? (
+        <TaskListView tasks={visibleRows} columns={columns} today={today} onOpen={stableOpen} selectedId={openId} />
+      ) : (
+        <MonthCalendar month={month} today={today} onMonth={setMonth} onOpen={(t) => stableOpen(t.id)}
+          tasks={calendarTasks.filter((t) => t.start_date || t.due_date)}
+          undated={calendarTasks.filter((t) => !t.start_date && !t.due_date)} />
+      )}
 
       {openId !== null && (
         <TaskPanel projectId={projectId} task={openTaskData} labels={labels} onCreateLabel={addLabel}

@@ -167,6 +167,7 @@ class Task(models.Model):
     title = models.CharField('título', max_length=200)
     description = models.TextField('descripción', blank=True, default='')
     priority = models.CharField(max_length=10, choices=Priority.choices, default=Priority.MEDIUM)
+    start_date = models.DateField('inicio', null=True, blank=True)
     due_date = models.DateField('fecha límite', null=True, blank=True)
     assignees = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='assigned_tasks', blank=True)
     # Personas que siguen la tarea sin ser responsables: reciben sus novedades (comentarios, terminada).

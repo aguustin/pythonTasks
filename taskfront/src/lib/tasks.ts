@@ -14,6 +14,7 @@ export type Task = {
   title: string
   description: string
   priority: Priority
+  start_date?: string | null
   due_date: string | null
   assignees: Person[]
   position: number
