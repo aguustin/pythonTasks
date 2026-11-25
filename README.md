@@ -4,9 +4,19 @@ Gestor de tareas estilo Kanban para empresas, comercios, kioscos y equipos de tr
 Multi-organización, con permisos por tablero, columnas personalizables, responsables,
 prioridades, comentarios e historial de actividad.
 
-> **Estado:** backend (API v1) del MVP completo y testeado. Frontend nuevo (`taskfront/`) en construcción:
-> base, sesión segura (BFF), identidad visual, temas y pantallas de acceso listas; las secciones de trabajo
-> llegan en las próximas etapas (ver `docs/especificacion-funcional.md` §8.5).
+> **Estado:** MVP completo (backend + frontend), listo para pruebas con usuarios reales. Para lanzarlo
+> comercialmente faltan la API key de Resend y el dominio verificado para los correos (D25).
+
+**Velatrix One · Projects** — *Gestión de proyectos y equipos.* Lo que incluye el MVP:
+
+- Cuentas con sesión segura, recuperación de contraseña y cierre de sesiones.
+- Organizaciones, integrantes con roles e invitaciones por link (con correo opcional).
+- Proyectos con acceso por organización o restringido, favoritos, archivado y configuración.
+- Tablero con columnas propias (hasta 6), alta rápida, arrastrar y soltar, "Mover a…", filtros y
+  "Solo mis tareas"; detalle de la tarea con responsables, prioridad, vencimiento, comentarios e historial.
+- **Mis tareas** e **Inicio** con los mismos criterios (Vencidas · Hoy · Esta semana · Más adelante · Sin fecha),
+  marcar como hecha con "Deshacer", resumen de proyectos y carga por integrante.
+- Tema claro y oscuro, celular con barra inferior, atajos de teclado y accesibilidad WCAG 2.2 AA.
 
 ---
 
@@ -115,9 +125,12 @@ El link de invitación es `{FRONTEND_URL}/invitacion/{token}`.
 | GET | `boards/{id}/activity/[?task={id}]` | lector (paginado) |
 | GET/PATCH/DELETE | `tasks/{id}/` | lector / editor / editor |
 | POST | `tasks/{id}/move/` | editor, o lector asignado · `{column, position?}` |
+| POST | `tasks/{id}/complete/` | editor, o lector asignado · a la primera columna de terminadas. Devuelve `previous: {column, position}` para deshacer con `move/` |
+| POST | `tasks/{id}/reopen/` | editor, o lector asignado · a la primera columna sin terminar, al final |
+| GET | `boards/{id}/people/` | lector · personas con acceso al proyecto y su permiso efectivo (para elegir responsables) |
 | GET/POST | `tasks/{id}/comments/` | lector |
 | PATCH/DELETE | `comments/{id}/` | autor / autor o admin |
-| GET | `my-tasks/` | mis tareas asignadas, en todas mis organizaciones |
+| GET | `my-tasks/` | mis tareas asignadas, en todas mis organizaciones (incluye `board_title`, `board_color`, `column_name`, `is_done`) |
 
 **Regla de responsables:** todo responsable tiene acceso al proyecto. Si alguien pierde el acceso (sale del
 proyecto, el proyecto pasa a privado, baja de rol en la organización), deja de ser responsable de esas tareas y
@@ -129,6 +142,10 @@ queda registrado en la actividad (`assignees_removed`). Las vistas previas sirve
 **Filtros** (`boards/{id}/tasks/` y `my-tasks/`): `assignee=<id>|me|none`, `priority=high,urgent`,
 `due=overdue|today|week|none`, `status=open|done|all`, `column=<id>`, `q=texto`.
 En `my-tasks/` además `organization=<id>`; por defecto `status=open`.
+
+**Inicio y Mis tareas usan los mismos grupos:** vencidas (antes de hoy) · hoy · esta semana (de mañana a 7 días)
+· más adelante · sin fecha; solo tareas abiertas de proyectos no archivados. Los contadores de
+`organizations/{id}/home/` (`overdue`, `today`, `week`) cuentan exactamente esos grupos.
 
 Otros: `GET /health/` (chequeo de vida) · `/admin/` (panel de Django).
 

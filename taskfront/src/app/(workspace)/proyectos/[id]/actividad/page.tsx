@@ -34,7 +34,7 @@ export default async function ProjectActivityPage({ params, searchParams }: Page
     return (
       <PageBody>
         <EmptyState icon={History} title={page > 1 ? 'No hay más actividad' : 'Todavía no hay actividad'}>
-          {page > 1 ? <Link href={base} className="text-accent-text hover:underline">Volver a lo más reciente</Link> : 'Acá vas a ver quién creó, movió o comentó cada tarea.'}
+          {page > 1 ? <Link href={base} className="text-accent-text underline underline-offset-2 hover:no-underline">Volver a lo más reciente</Link> : 'Acá vas a ver quién creó, movió o comentó cada tarea.'}
         </EmptyState>
       </PageBody>
     )

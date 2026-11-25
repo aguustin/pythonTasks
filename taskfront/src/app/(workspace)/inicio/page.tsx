@@ -85,7 +85,7 @@ export default async function HomePage() {
         </nav>
         <p className="-mt-2 text-[12px] text-subtle">
           {home.my.open} {home.my.open === 1 ? 'tarea abierta' : 'tareas abiertas'} en total ·{' '}
-          <Link href="/mis-tareas" className="text-accent-text hover:underline">Ir a Mis tareas</Link>
+          <Link href="/mis-tareas" className="text-accent-text underline underline-offset-2 hover:no-underline">Ir a Mis tareas</Link>
         </p>
 
         {home.overview ? (

@@ -43,9 +43,9 @@
   --success-bg: #d1fae5;
   --warning: #b45309;
   --warning-bg: #fef3c7;
-  --danger: #dc2626;
+  --danger: #b91c1c; /* 5,6:1 sobre --danger-bg y 6,5:1 sobre blanco (texto chico) */
   --danger-bg: #fee2e2;
-  --on-danger: #ffffff; /* 4,83:1 */
+  --on-danger: #ffffff; /* 6,5:1 */
   --progress: #6d28d9;
   --progress-bg: #ede9fe;
 

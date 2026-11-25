@@ -56,7 +56,7 @@ export default async function MyTasksPage({ searchParams }: PageProps<'/mis-tare
             </EmptyState>
           ) : (
             <EmptyState icon={ListChecks} title="Ninguna tarea coincide con los filtros">
-              <Link href="/mis-tareas" className="text-accent-text hover:underline">Ver todas mis tareas</Link>
+              <Link href="/mis-tareas" className="text-accent-text underline underline-offset-2 hover:no-underline">Ver todas mis tareas</Link>
             </EmptyState>
           )
         ) : (

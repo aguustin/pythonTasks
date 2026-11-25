@@ -37,10 +37,12 @@ export function BoardToolbar({ filters, onChange, people, visible, total }: {
     <div role="search" aria-label="Filtrar tareas" className="mb-3 flex flex-wrap items-center gap-2">
       <label className="relative">
         <span className="sr-only">Buscar tareas</span>
+        {!filters.q && <kbd aria-hidden className="pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 rounded border border-border px-1 font-mono text-[10px] text-subtle sm:block">/</kbd>}
         <Search aria-hidden size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-subtle" />
         <input type="search" value={filters.q} onChange={(e) => set('q', e.target.value)} placeholder="Buscar tareas"
+          data-shortcut="search" aria-keyshortcuts="/"
           onKeyDown={(e) => { if (e.key === 'Escape' && filters.q) { e.preventDefault(); e.stopPropagation(); set('q', '') } }}
-          className="h-8 w-48 rounded-[var(--radius-sm)] border border-border bg-surface pl-8 pr-2 text-[13px] outline-none placeholder:text-subtle hover:border-border-strong focus-visible:border-focus sm:w-56" />
+          className="h-8 w-48 rounded-[var(--radius-sm)] border border-border bg-surface pl-8 pr-7 text-[13px] outline-none placeholder:text-subtle hover:border-border-strong focus-visible:border-focus sm:w-56" />
       </label>
       <button type="button" aria-pressed={filters.mine} onClick={() => set('mine', !filters.mine)}
         className={`inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-sm)] border px-2.5 text-[13px] ${

@@ -127,7 +127,7 @@ export function TaskPanel({ projectId, task, missing, detail, columns, currentCo
             <label className="flex min-w-0 items-center gap-2 text-[13px]">
               <span className="sr-only">Columna</span>
               <span aria-hidden className="size-2.5 shrink-0 rounded-full" style={{ background: column.color || 'var(--color-subtle)' }} />
-              <select value={column.id} onChange={(e) => onMove(Number(e.target.value))}
+              <select value={column.id} onChange={(e) => onMove(Number(e.target.value))} data-shortcut="move" aria-keyshortcuts="M"
                 className="h-8 max-w-48 rounded-[var(--radius-sm)] border border-transparent bg-transparent pr-1 font-semibold text-text outline-none hover:border-border focus-visible:border-focus">
                 {columns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>

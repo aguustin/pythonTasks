@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
+import type { Activity, Page } from '@/lib/activity'
 import { failure, type ActionResult } from '@/lib/forms'
 import type { BoardRole, Project, ProjectStatus } from '@/lib/projects'
 import type { Column, Comment, Priority, Task } from '@/lib/tasks'
@@ -319,6 +320,25 @@ export async function deleteColumn(boardId: number, columnId: number, moveTo: nu
   const res = await apiAction(`/boards/${boardId}/columns/${columnId}/${moveTo ? `?move_to=${moveTo}` : ''}`, 'DELETE')
   if (!res.ok) return failure(res)
   return { ok: true, data: undefined }
+}
+
+export type TaskDetailData = { taskId: number; comments: Comment[]; history: Activity[] }
+
+/**
+ * Comentarios e historial de una tarea, para abrir el panel sin volver a renderizar todo el
+ * tablero en el servidor. null si no es de este proyecto o no hay acceso.
+ */
+export async function loadTaskDetail(projectId: number, taskId: number): Promise<ActionResult<TaskDetailData | null>> {
+  if (!validId(projectId) || !validId(taskId)) return { ok: true, data: null }
+  const [task, comments, history] = await Promise.all([
+    apiAction<Task>(`/tasks/${taskId}/`, 'GET'),
+    apiAction<Page<Comment>>(`/tasks/${taskId}/comments/?page_size=200`, 'GET'),
+    apiAction<Page<Activity>>(`/boards/${projectId}/activity/?task=${taskId}&page_size=100`, 'GET'),
+  ])
+  if (!task.ok || task.data.board !== projectId) return { ok: true, data: null }
+  if (!comments.ok) return failure(comments)
+  if (!history.ok) return failure(history)
+  return { ok: true, data: { taskId, comments: comments.data.results, history: history.data.results } }
 }
 
 // ── Mi trabajo (Inicio y Mis tareas) ─────────────────────────────────────────

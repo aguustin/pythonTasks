@@ -2,6 +2,7 @@
 
 import { useSortable } from '@dnd-kit/sortable'
 import Link from 'next/link'
+import { memo } from 'react'
 import { CSS } from '@dnd-kit/utilities'
 import { ChevronDown, ChevronsUp, ChevronUp, GripVertical, MessageSquare, MoveRight } from 'lucide-react'
 
@@ -81,11 +82,47 @@ export function CardBody({ task, done, today }: { task: Task; done: boolean; tod
   )
 }
 
+/** Título-enlace: cubre la tarjeta (after:inset-0); los controles quedan por encima (z-10). */
+const CardTitle = memo(function CardTitle({ taskId, title, href, selected, done, onOpen }: {
+  taskId: number; title: string; href: string; selected: boolean; done: boolean; onOpen: (taskId: number) => void
+}) {
+  return (
+    <p className={`min-w-0 flex-1 py-0.5 text-[13px] leading-snug ${done ? 'text-muted' : 'text-text'}`}>
+      <Link href={href} scroll={false} aria-current={selected ? 'true' : undefined}
+        onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); onOpen(taskId) }}
+        className="outline-none after:absolute after:inset-0 after:rounded-[var(--radius-md)] focus-visible:after:shadow-[0_0_0_2px_var(--color-focus)]">
+        {title}
+      </Link>
+    </p>
+  )
+})
+
+const stop = (e: React.SyntheticEvent) => e.stopPropagation()
+
+/** "Mover a…": la alternativa sin arrastre (y el atajo M). */
+const MoveMenu = memo(function MoveMenu({ taskId, title, columns, currentColumn, onMoveTo }: {
+  taskId: number; title: string; columns: Column[]; currentColumn: number; onMoveTo: (taskId: number, columnId: number) => void
+}) {
+  const others = columns.filter((c) => c.id !== currentColumn)
+  if (others.length === 0) return null
+  return (
+    <div onMouseDown={stop} onTouchStart={stop} onKeyDown={stop}>
+      <ActionMenu label={`Mover ${title} a otra columna`}
+        items={others.map((c) => ({ label: `Mover a ${c.name}`, icon: MoveRight, onSelect: () => onMoveTo(taskId, c.id) }))} />
+    </div>
+  )
+})
+
+const MemoMeta = memo(CardMeta)
+
 /**
  * Tarjeta arrastrable. Con el mouse se arrastra la tarjeta entera; con el teclado, el asa
  * (espacio para tomar, flechas, espacio para soltar). "Mover a…" es la alternativa sin arrastre.
+ *
+ * Rendimiento: durante un arrastre dnd-kit vuelve a renderizar todas las tarjetas; por eso acá
+ * solo queda lo que cambia (posición, asa) y el contenido va en partes memorizadas.
  */
-export function TaskCard({ task, done, today, canMove, columns, currentColumn, onMoveTo, href, selected, onOpen }: {
+export const TaskCard = memo(function TaskCard({ task, done, today, canMove, columns, currentColumn, onMoveTo, href, selected, onOpen }: {
   task: Task
   done: boolean
   today: string
@@ -93,21 +130,19 @@ export function TaskCard({ task, done, today, canMove, columns, currentColumn, o
   columns: Column[]
   /** Columna en la que se ve ahora (puede diferir de task.column mientras hay cambios pendientes). */
   currentColumn: number
-  onMoveTo: (columnId: number) => void
+  onMoveTo: (taskId: number, columnId: number) => void
   /** Enlace al panel de la tarea (?tarea=id); toda la tarjeta lo abre. */
   href: string
   selected: boolean
-  onOpen: () => void
+  onOpen: (taskId: number) => void
 }) {
   const { setNodeRef, setActivatorNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({
     id: task.id,
     disabled: !canMove,
   })
-  const others = columns.filter((c) => c.id !== currentColumn)
   // Mouse y táctil activan desde toda la tarjeta; el teclado, solo desde el asa (que recibe el foco).
   type Handler = (e: React.SyntheticEvent) => void
   const { onKeyDown, ...pointer } = (listeners ?? {}) as Record<string, Handler>
-  const stop = (e: React.SyntheticEvent) => e.stopPropagation()
 
   return (
     <li
@@ -120,22 +155,10 @@ export function TaskCard({ task, done, today, canMove, columns, currentColumn, o
       } ${selected ? 'border-accent shadow-[0_0_0_1px_var(--color-accent)]' : 'border-border'} ${isDragging ? 'opacity-40' : 'hover:border-border-strong'}`}
     >
       <div className="flex items-start gap-1">
-        <p className={`min-w-0 flex-1 py-0.5 text-[13px] leading-snug ${done ? 'text-muted' : 'text-text'}`}>
-          {/* El enlace cubre la tarjeta (after:inset-0); los controles quedan por encima (z-10). */}
-          <Link href={href} scroll={false} aria-current={selected ? 'true' : undefined}
-            onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); onOpen() }}
-            className="outline-none after:absolute after:inset-0 after:rounded-[var(--radius-md)] focus-visible:after:shadow-[0_0_0_2px_var(--color-focus)]">
-            {task.title}
-          </Link>
-        </p>
+        <CardTitle taskId={task.id} title={task.title} href={href} selected={selected} done={done} onOpen={onOpen} />
         {canMove && (
           <div className="relative z-10 -mr-1.5 -mt-0.5 flex shrink-0 items-center opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100">
-            {others.length > 0 && (
-              <div onMouseDown={stop} onTouchStart={stop} onKeyDown={stop}>
-                <ActionMenu label={`Mover ${task.title} a otra columna`}
-                  items={others.map((c) => ({ label: `Mover a ${c.name}`, icon: MoveRight, onSelect: () => onMoveTo(c.id) }))} />
-              </div>
-            )}
+            <MoveMenu taskId={task.id} title={task.title} columns={columns} currentColumn={currentColumn} onMoveTo={onMoveTo} />
             <button ref={setActivatorNodeRef} type="button" {...attributes} onKeyDown={onKeyDown}
               aria-label={`Mover ${task.title} con el teclado`} aria-roledescription="tarea arrastrable"
               className="grid h-8 w-6 cursor-grab place-items-center rounded-[var(--radius-sm)] text-subtle hover:bg-surface-2 hover:text-text">
@@ -144,7 +167,7 @@ export function TaskCard({ task, done, today, canMove, columns, currentColumn, o
           </div>
         )}
       </div>
-      <CardMeta task={task} done={done} today={today} />
+      <MemoMeta task={task} done={done} today={today} />
     </li>
   )
-}
+})

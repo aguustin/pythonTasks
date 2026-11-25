@@ -93,7 +93,7 @@ export function NewTaskDialog({ open, onClose, projects, defaultProjectId }: {
       {projects.length === 0 ? (
         <p className="text-sm text-muted">
           No hay proyectos donde puedas crear tareas.{' '}
-          <Link href="/proyectos" onClick={close} className="text-accent-text hover:underline">Ir a Proyectos</Link>
+          <Link href="/proyectos" onClick={close} className="text-accent-text underline underline-offset-2 hover:no-underline">Ir a Proyectos</Link>
         </p>
       ) : (
         <form id="new-task-form" className="space-y-4" onSubmit={(e) => { e.preventDefault(); void submit(false) }}>

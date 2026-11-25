@@ -18,10 +18,11 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import {
-  createColumn, createTask, deleteColumn, deleteTask, moveTask, reorderColumns, updateColumn, updateTask,
+  createColumn, createTask, deleteColumn, deleteTask, loadTaskDetail, moveTask, reorderColumns, updateColumn, updateTask,
+  type TaskDetailData,
 } from '@/app/(workspace)/proyectos/actions'
 import { useToast } from '@/components/ui/Toast'
 import type { Activity } from '@/lib/activity'
@@ -190,7 +191,9 @@ export function Board({ projectId, columns, tasks, role, me, archived, today, pe
     !filtering || matchesFilters(task, filters, { userId, today, done: doneColumns.has(columnId) })
 
   // ── Panel de la tarea (?tarea=id) ───────────────────────────────────────────
-  // Se abre al instante; la URL (y con ella comentarios e historial) llega con la navegación.
+  // Abrir y cerrar solo cambia la URL en el navegador (history, que Next sincroniza): no se
+  // vuelve a renderizar el tablero en el servidor. Comentarios e historial se piden aparte;
+  // con un enlace directo ya vienen del servidor (prop `detail`).
   const urlTask = Number(searchParams.get('tarea')) || null
   const [localOpen, setLocalOpen] = useState<{ id: number | null } | undefined>(undefined)
   if (localOpen !== undefined && localOpen.id === urlTask) setLocalOpen(undefined)
@@ -202,8 +205,8 @@ export function Board({ projectId, columns, tasks, role, me, archived, today, pe
   }
   const openTask = (id: number) => {
     setLocalOpen({ id })
-    if (urlTask === null) router.push(taskHref(id), { scroll: false })
-    else router.replace(taskHref(id), { scroll: false })
+    if (urlTask === null) window.history.pushState(null, '', taskHref(id))
+    else window.history.replaceState(null, '', taskHref(id))
   }
   const closeTask = useCallback(() => {
     const id = openId
@@ -211,10 +214,46 @@ export function Board({ projectId, columns, tasks, role, me, archived, today, pe
     const params = new URLSearchParams(window.location.search)
     params.delete('tarea')
     const qs = params.toString()
-    router.replace(qs ? `${window.location.pathname}?${qs}` : window.location.pathname, { scroll: false })
+    window.history.replaceState(null, '', qs ? `${window.location.pathname}?${qs}` : window.location.pathname)
     // El foco vuelve a la tarjeta desde la que se abrió.
     requestAnimationFrame(() => document.querySelector<HTMLElement>(`li[data-task-id="${id}"] a`)?.focus())
-  }, [openId, router])
+  }, [openId])
+
+  // Detalle pedido desde el cliente (si el servidor no lo trajo para esta tarea).
+  const [fetched, setFetched] = useState<TaskDetailData | null>(null)
+  const [detailMissing, setDetailMissing] = useState<number | null>(null)
+  useEffect(() => {
+    if (openId === null || detail?.taskId === openId || fetched?.taskId === openId) return
+    let cancelled = false
+    loadTaskDetail(projectId, openId).then((res) => {
+      if (cancelled) return
+      if (res.ok && res.data) setFetched(res.data)
+      else if (res.ok) setDetailMissing(openId)
+      else toast({ tone: 'error', message: `No se pudieron cargar los comentarios. ${res.error}` })
+    }).catch(() => !cancelled && toast({ tone: 'error', message: NETWORK }))
+    return () => { cancelled = true }
+  }, [openId, detail?.taskId, fetched?.taskId, projectId, toast])
+
+  // Atajo M (mover): con el panel abierto, va al selector de columna; con una tarjeta
+  // enfocada, abre su menú "Mover a…". Fuera de campos de texto, menús y diálogos.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() !== 'm' || e.ctrlKey || e.metaKey || e.altKey || e.repeat || e.defaultPrevented) return
+      const el = document.activeElement
+      if (el instanceof HTMLElement && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName))) return
+      if (document.querySelector('dialog[open], [role=menu]')) return
+      const panelSelect = document.querySelector<HTMLSelectElement>('[data-task-panel] [data-shortcut="move"]')
+      const card = el instanceof HTMLElement ? el.closest('li[data-task-id]') : null
+      const cardMenu = card?.querySelector<HTMLButtonElement>('button[aria-haspopup=menu]')
+      const target = panelSelect ?? cardMenu
+      if (!target) return
+      e.preventDefault()
+      if (target === cardMenu) cardMenu.click()
+      else target.focus()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [])
 
   // ── Permisos ────────────────────────────────────────────────────────────────
   const canAdd = canEditTasks(role, archived)
@@ -286,6 +325,12 @@ export function Board({ projectId, columns, tasks, role, me, archived, today, pe
     commitMove(taskId, columnId, (groups[columnId] ?? []).filter((id) => id !== taskId).length, col && `Tarea movida a ${col.name}.`)
   }
 
+  // Callbacks estables para las tarjetas memorizadas (siempre usan el estado más reciente).
+  const latest = useRef({ moveTo, openTask })
+  useEffect(() => { latest.current = { moveTo, openTask } })
+  const stableMoveTo = useCallback((taskId: number, columnId: number) => latest.current.moveTo(taskId, columnId), [])
+  const stableOpen = useCallback((taskId: number) => latest.current.openTask(taskId), [])
+
   // ── Anuncios para lectores de pantalla ──────────────────────────────────────
   const describe = (id: UniqueIdentifier | undefined) => {
     if (id === undefined) return ''
@@ -316,7 +361,8 @@ export function Board({ projectId, columns, tasks, role, me, archived, today, pe
 
   const openTaskData = openId !== null ? byId.get(openId) ?? null : null
   const openColumn = openId !== null ? columnOf.get(openId) ?? null : null
-  const openDetail = detail && detail.taskId === openId ? detail : null
+  // El del servidor (más fresco después de cada refresco) tiene prioridad sobre el pedido aparte.
+  const openDetail = detail && detail.taskId === openId ? detail : fetched && fetched.taskId === openId ? fetched : null
 
   return (
     <>
@@ -366,8 +412,8 @@ export function Board({ projectId, columns, tasks, role, me, archived, today, pe
                     if (!task) return null
                     return (
                       <TaskCard key={id} task={task} done={column.is_done} today={today} canMove={movable(task)}
-                        columns={columns} currentColumn={column.id} onMoveTo={(col) => moveTo(id, col)}
-                        href={taskHref(id)} selected={openId === id} onOpen={() => openTask(id)} />
+                        columns={columns} currentColumn={column.id} onMoveTo={stableMoveTo}
+                        href={taskHref(id)} selected={openId === id} onOpen={stableOpen} />
                     )
                   })}
                 </SortableContext>
@@ -388,7 +434,7 @@ export function Board({ projectId, columns, tasks, role, me, archived, today, pe
       </DndContext>
 
       {openId !== null && (
-        <TaskPanel projectId={projectId} task={openTaskData} missing={localOpen === undefined && !openTaskData}
+        <TaskPanel projectId={projectId} task={openTaskData} missing={!openTaskData && (localOpen === undefined || detailMissing === openId)}
           detail={openDetail} columns={columns} currentColumn={openColumn} people={people} me={me} role={role}
           canEdit={canAdd} canMove={openTaskData ? movable(openTaskData) : false} archived={archived} today={today}
           onClose={closeTask}

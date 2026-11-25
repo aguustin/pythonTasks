@@ -39,7 +39,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={show}>
       {children}
-      <div aria-live="polite" aria-relevant="additions" className="pointer-events-none fixed inset-x-4 bottom-4 z-50 flex flex-col items-center gap-2 sm:inset-x-auto sm:right-6 sm:items-end">
+      <div aria-live="polite" aria-relevant="additions" className="pointer-events-none fixed inset-x-4 bottom-[calc(var(--bottom-bar,0px)+1rem)] z-50 flex flex-col items-center gap-2 sm:inset-x-auto sm:right-6 sm:items-end">
         {toasts.map((t) => {
           const Icon = ICONS[t.tone]
           return (
