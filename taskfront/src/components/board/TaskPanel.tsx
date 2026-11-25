@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import { ActionMenu } from '@/components/ui/ActionMenu'
 import { Avatar } from '@/components/ui/Badges'
-import { followTask } from '@/app/(workspace)/proyectos/actions'
+import { addProjectMember, followTask, getAddablePeople } from '@/app/(workspace)/proyectos/actions'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useToast } from '@/components/ui/Toast'
 import { activityText, stamp, type Activity } from '@/lib/activity'
@@ -215,7 +215,26 @@ export function TaskPanel({ projectId, task, missing, detail, labels, onCreateLa
                 <AssigneePicker value={shown.assignees} people={people} editable={canEdit}
                   onChange={(ids) => void save({ assignee_ids: ids }, {
                     assignees: ids.map((id) => people.find((p) => p.id === id) ?? shown.assignees.find((a) => a.id === id)).filter((p): p is Person => Boolean(p)),
-                  })} />
+                  })}
+                  addable={role === 'admin' && !archived ? {
+                    // F8: el líder suma al proyecto (como editor) a alguien sin acceso y lo asigna.
+                    load: async () => {
+                      const res = await getAddablePeople(projectId).catch(() => null)
+                      if (res && !res.ok) toast({ tone: 'error', message: res.error })
+                      return res?.ok ? res.data : null
+                    },
+                    add: async (person) => {
+                      const res = await addProjectMember(projectId, person.id, 'editor').catch(() => ({ ok: false as const, error: 'No se pudo conectar. Revisá tu conexión e intentá de nuevo.' }))
+                      if (!res.ok) {
+                        toast({ tone: 'error', message: `No se pudo agregar a ${person.full_name}. ${res.error}` })
+                        return false
+                      }
+                      const assignees = [...shown.assignees.filter((a) => a.id !== person.id), { id: person.id, email: person.email, full_name: person.full_name }]
+                      toast({ tone: 'success', message: `${person.full_name} se sumó al proyecto como editor y quedó como responsable.` })
+                      void save({ assignee_ids: assignees.map((a) => a.id) }, { assignees })
+                      return true
+                    },
+                  } : undefined} />
               </dd>
 
               <dt className="text-muted">Etiquetas</dt>

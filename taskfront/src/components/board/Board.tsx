@@ -34,7 +34,7 @@ import {
 } from '@/lib/tasks'
 
 import { MonthCalendar } from '@/components/calendar/MonthCalendar'
-import { parseMonth } from '@/lib/calendar'
+import { dayLabel, parseMonth, parseWeek, periodParams } from '@/lib/calendar'
 
 import { BoardToolbar } from './BoardToolbar'
 import { AddColumn, ColumnHeader, DeleteColumnDialog, MAX_COLUMNS } from './ColumnTools'
@@ -165,6 +165,29 @@ export function Board({ projectId, columns, tasks, role, me, archived, today, pe
     if (res.ok) setPatched((all) => ({ ...all, [taskId]: res.data }))
     return res
   }), [enqueue])
+
+  // Reprogramar desde el calendario (arrastrando): optimista, por la cola; "Deshacer" vuelve a las fechas anteriores.
+  const rescheduleTask = useCallback(function reschedule(taskId: number, dates: { start_date?: string | null; due_date?: string | null }, undoable = true) {
+    const before = byIdRef.current.get(taskId)
+    if (!before) return
+    setPatched((all) => ({ ...all, [taskId]: { ...before, ...dates } }))
+    void enqueue(async () => {
+      const res = await attempt(() => updateTask(taskId, dates))
+      if (!res.ok) {
+        setPatched((all) => ({ ...all, [taskId]: before }))
+        toast({ tone: 'error', message: `No se pudo reprogramar la tarea. ${res.error}` })
+        return
+      }
+      setPatched((all) => ({ ...all, [taskId]: res.data }))
+      if (!undoable) return
+      const previous = Object.fromEntries(Object.keys(dates).map((k) => [k, before[k as 'start_date' | 'due_date'] ?? null]))
+      toast({
+        tone: 'success',
+        message: res.data.due_date ? `«${before.title}» ahora vence el ${dayLabel(res.data.due_date)}.` : `«${before.title}» reprogramada.`,
+        undo: () => reschedule(taskId, previous, false),
+      })
+    })
+  }, [enqueue, toast])
 
   const removeTask = useCallback((taskId: number) => enqueue(async () => {
     const res = await attempt(() => deleteTask(taskId))
@@ -404,11 +427,9 @@ export function Board({ projectId, columns, tasks, role, me, archived, today, pe
     start_date: task.start_date ?? null, due_date: task.due_date,
   }))
   const month = parseMonth(searchParams.get('mes'), today)
-  const setMonth = (m: string) => {
-    const params = new URLSearchParams(searchParams.toString())
-    if (m === today.slice(0, 7)) params.delete('mes')
-    else params.set('mes', m)
-    const qs = params.toString()
+  const week = parseWeek(searchParams.get('semana'))
+  const setPeriod = (m: string, w: string | null) => {
+    const qs = periodParams(new URLSearchParams(searchParams.toString()), today, m, w).toString()
     window.history.replaceState(null, '', qs ? `${pathname}?${qs}` : pathname)
   }
 
@@ -489,9 +510,10 @@ export function Board({ projectId, columns, tasks, role, me, archived, today, pe
       ) : view === 'list' ? (
         <TaskListView tasks={visibleRows} columns={columns} today={today} onOpen={stableOpen} selectedId={openId} />
       ) : (
-        <MonthCalendar month={month} today={today} onMonth={setMonth} onOpen={(t) => stableOpen(t.id)}
+        <MonthCalendar month={month} week={week} today={today} onNavigate={setPeriod} onOpen={(t) => stableOpen(t.id)}
           tasks={calendarTasks.filter((t) => t.start_date || t.due_date)}
-          undated={calendarTasks.filter((t) => !t.start_date && !t.due_date)} />
+          undated={calendarTasks.filter((t) => !t.start_date && !t.due_date)}
+          onMove={canAdd ? (t, dates) => rescheduleTask(t.id, dates) : undefined} />
       )}
 
       {openId !== null && (

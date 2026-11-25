@@ -52,7 +52,7 @@ export default async function MyTasksPage({ searchParams }: PageProps<'/mis-tare
   const calendar = one(sp.vista) === 'calendario'
   const keep = (vista: 'lista' | 'calendario') => {
     const p = new URLSearchParams()
-    for (const [k, v] of Object.entries(sp)) if (typeof v === 'string' && k !== 'vista' && (vista === 'calendario' || k !== 'mes')) p.set(k, v)
+    for (const [k, v] of Object.entries(sp)) if (typeof v === 'string' && k !== 'vista' && (vista === 'calendario' || (k !== 'mes' && k !== 'semana'))) p.set(k, v)
     if (vista === 'calendario') p.set('vista', 'calendario')
     const qs = p.toString()
     return qs ? `?${qs}` : ''

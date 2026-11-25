@@ -540,3 +540,29 @@ export async function removeProjectTeam(boardId: number, accessId: number): Prom
   refresh(boardId)
   return { ok: true, data: undefined }
 }
+
+// ── "Agregar al proyecto" desde Responsables (F8, solo el líder) ────────────
+
+export type AddablePerson = { id: number; email: string; full_name: string; org_role: 'owner' | 'admin' | 'member' | 'guest' }
+
+/**
+ * Personas de la organización del proyecto que todavía no tienen acceso a él.
+ * Se pide al abrir el selector (no en cada carga del tablero). La API exige ser líder al agregar.
+ */
+export async function getAddablePeople(boardId: number): Promise<ActionResult<AddablePerson[]>> {
+  if (!validId(boardId)) return { ok: false, error: 'Proyecto inválido.' }
+  const board = await apiAction<Project>(`/boards/${boardId}/`, 'GET')
+  if (!board.ok) return failure(board)
+  if (board.data.my_role !== 'admin') return { ok: true, data: [] }
+  const [members, people] = await Promise.all([
+    apiAction<{ user: { id: number; email: string; full_name: string }; role: AddablePerson['org_role'] }[]>(`/organizations/${board.data.organization}/members/`, 'GET'),
+    apiAction<{ id: number }[]>(`/boards/${boardId}/people/`, 'GET'),
+  ])
+  if (!members.ok) return members.status === 403 ? { ok: true, data: [] } : failure(members) // líder invitado: no ve integrantes
+  if (!people.ok) return failure(people)
+  const inside = new Set(people.data.map((p) => p.id))
+  return {
+    ok: true,
+    data: members.data.filter((m) => !inside.has(m.user.id)).map((m) => ({ ...m.user, org_role: m.role })),
+  }
+}
