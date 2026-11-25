@@ -11,13 +11,13 @@ import { useToast } from '@/components/ui/Toast'
 import { activityText, stamp, type Activity } from '@/lib/activity'
 import type { ActionResult } from '@/lib/forms'
 import type { BoardRole } from '@/lib/projects'
-import { dueLabel, dueState, PRIORITY_LABELS, type Column, type Comment, type Person, type PersonWithRole, type Priority, type Task } from '@/lib/tasks'
+import { dueLabel, dueState, PRIORITY_LABELS, REPEAT_LABELS, type Column, type Repeat, type Comment, type Person, type PersonWithRole, type Priority, type Task } from '@/lib/tasks'
 
 import { AssigneePicker } from './AssigneePicker'
 import { Comments } from './Comments'
 import { PriorityTag } from './TaskCard'
 
-export type TaskChanges = Partial<{ title: string; description: string; priority: Priority; due_date: string | null; assignee_ids: number[] }>
+export type TaskChanges = Partial<{ title: string; description: string; priority: Priority; due_date: string | null; assignee_ids: number[]; repeat: Repeat }>
 
 type Status = 'idle' | 'saving' | 'saved' | 'error'
 
@@ -244,6 +244,23 @@ export function TaskPanel({ projectId, task, missing, detail, columns, currentCo
                   </>
                 ) : <span className="font-mono">{shown.due_date ? dueLabel(shown.due_date, today) : '—'}</span>}
                 {shown.due_date && dueState(shown.due_date, done, today) === 'late' && <span className="text-[12px] font-medium text-danger">Vencida</span>}
+              </dd>
+
+              <dt className="text-muted"><label htmlFor="task-repeat">Repetir</label></dt>
+              <dd>
+                {canEdit ? (
+                  <span className="relative block">
+                    <select id="task-repeat" value={shown.repeat ?? 'none'} className={`${control} appearance-none pr-8`}
+                      aria-describedby={shown.repeat && shown.repeat !== 'none' ? 'task-repeat-hint' : undefined}
+                      onChange={(e) => void save({ repeat: e.target.value as Repeat }, { repeat: e.target.value as Repeat })}>
+                      {(Object.keys(REPEAT_LABELS) as Repeat[]).map((r) => <option key={r} value={r}>{REPEAT_LABELS[r]}</option>)}
+                    </select>
+                    <ChevronDown aria-hidden size={16} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-subtle" />
+                  </span>
+                ) : <span>{REPEAT_LABELS[shown.repeat ?? 'none']}</span>}
+                {shown.repeat && shown.repeat !== 'none' && (
+                  <p id="task-repeat-hint" className="mt-1 text-[12px] text-subtle">Al terminarla se crea la próxima, con la fecha siguiente.</p>
+                )}
               </dd>
 
               {shown.created_by && (

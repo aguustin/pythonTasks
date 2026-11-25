@@ -2,7 +2,7 @@ from datetime import timedelta
 
 from django.utils import timezone
 
-from boards.models import Activity, Task
+from boards.models import Activity, BoardMember, Task
 from tests.helpers import BaseAPITest
 from workspaces.models import OrgRole
 
@@ -312,3 +312,40 @@ class CompleteReopenTests(BaseAPITest):
         self.as_user(self.owner)
         self.client.post(f'/api/v1/boards/{self.board}/archive/')
         self.assertEqual(self.post(self.a, 'complete').status_code, 403)
+
+
+class DuplicateProjectAccessTests(BaseAPITest):
+    """Duplicar nunca da acceso de más: miembros solo si duplica un líder; responsables sin acceso se omiten."""
+
+    def setUp(self):
+        self.owner = self.make_user('owner')
+        self.lead = self.make_user('lead')
+        self.viewer = self.make_user('viewer')
+        self.org = self.make_org(self.owner)
+        for u in (self.lead, self.viewer):
+            self.add_member(self.org, u)
+        self.src = self.make_board(self.lead, self.org, visibility='private', title='Plantilla')['id']
+        self.as_user(self.lead)
+        self.client.post(f'/api/v1/boards/{self.src}/members/', {'user_id': self.viewer.id, 'role': 'viewer'}, format='json')
+        self.make_task(self.src, title='Abierta', assignee_ids=[self.viewer.id])
+
+    def dup(self, user, **flags):
+        self.as_user(user)
+        res = self.client.post(f'/api/v1/boards/{self.src}/duplicate/', {'title': 'Copia', **flags}, format='json')
+        self.assertEqual(res.status_code, 201, res.data)
+        return res.data['id']
+
+    def test_viewer_cannot_copy_members_and_assignees_without_access_are_dropped(self):
+        new = self.dup(self.viewer, include_members=True, include_tasks=True)
+        members = set(BoardMember.objects.filter(board_id=new).values_list('user_id', 'role'))
+        self.assertEqual(members, {(self.viewer.id, 'admin')})  # el líder original NO se copia
+        task = Task.objects.get(board_id=new)
+        self.assertEqual(set(task.assignees.values_list('pk', flat=True)), {self.viewer.id})
+
+    def test_leader_copies_members_and_outsiders_cannot_duplicate(self):
+        new = self.dup(self.lead, include_members=True, include_tasks=True)
+        self.assertEqual(set(BoardMember.objects.filter(board_id=new).values_list('user_id', flat=True)), {self.lead.id, self.viewer.id})
+        stranger = self.make_user('stranger')
+        self.add_member(self.org, stranger)
+        self.as_user(stranger)  # integrante sin acceso al proyecto privado
+        self.assertEqual(self.client.post(f'/api/v1/boards/{self.src}/duplicate/', {'title': 'X'}, format='json').status_code, 404)

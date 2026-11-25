@@ -75,6 +75,7 @@ class BoardViewSet(viewsets.ModelViewSet):
     POST /boards/                     crear (cualquier miembro de la organización)
     GET/PATCH/DELETE /boards/<id>/    ver (lector) / editar y borrar (líder = admin)
     GET  /boards/<id>/people/                         personas con acceso y su permiso (lector)
+    POST /boards/<id>/duplicate/                      copiar como punto de partida (plantilla)
     POST /boards/<id>/archive/ · /restore/            archivar / restaurar (líder)
     POST|DELETE /boards/<id>/favorite/                marcar / desmarcar favorito (lector)
     POST /boards/<id>/access-preview/                 a quién dejaría sin acceso un cambio (líder)
@@ -159,6 +160,24 @@ class BoardViewSet(viewsets.ModelViewSet):
         else:
             ProjectFavorite.objects.filter(user=request.user, board=board).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=['post'])
+    def duplicate(self, request, pk=None):
+        """
+        POST /boards/<id>/duplicate/ {title, include_tasks?, include_members?, keep_dates?}
+        Cualquiera que vea el proyecto y sea de la organización (puede crear proyectos, D4).
+        """
+        source = self.get_object()
+        require_membership(request.user, source.organization_id)
+        title = str(request.data.get('title', '')).strip()
+        if not title:
+            raise ValidationError({'title': 'Poné un nombre para el proyecto.'})
+        flag = lambda key: request.data.get(key) in (True, 'true', '1', 1)  # noqa: E731
+        board = services.duplicate_board(
+            source, request.user, title=title[:100], include_tasks=flag('include_tasks'),
+            include_members=flag('include_members'), keep_dates=flag('keep_dates'),
+        )
+        return Response({'id': board.pk}, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['get'])
     def people(self, request, pk=None):

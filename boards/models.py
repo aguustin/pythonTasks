@@ -126,6 +126,14 @@ class Priority(models.TextChoices):
     URGENT = 'urgent', 'Urgente'
 
 
+class Repeat(models.TextChoices):
+    NONE = 'none', 'No se repite'
+    DAILY = 'daily', 'Todos los días'
+    WEEKDAYS = 'weekdays', 'Días hábiles (lun. a vie.)'
+    WEEKLY = 'weekly', 'Todas las semanas'
+    MONTHLY = 'monthly', 'Todos los meses'
+
+
 class Task(models.Model):
     board = models.ForeignKey(Board, on_delete=models.CASCADE, related_name='tasks')
     # CASCADE para que borrar un tablero/organización funcione. Borrar una columna con tareas
@@ -145,6 +153,9 @@ class Task(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     completed_at = models.DateTimeField(null=True, blank=True)
+    # Recurrencia: al terminarla se crea la próxima (una sola vez: next_occurrence lo registra).
+    repeat = models.CharField('repetir', max_length=10, choices=Repeat.choices, default=Repeat.NONE)
+    next_occurrence = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
 
     class Meta:
         verbose_name = 'tarea'

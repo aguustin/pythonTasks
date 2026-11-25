@@ -12,7 +12,7 @@ import { Dialog } from '@/components/ui/Dialog'
 import { Field } from '@/components/ui/Field'
 import { Select } from '@/components/ui/Select'
 import { useToast } from '@/components/ui/Toast'
-import { PRIORITY_LABELS, type Column, type Priority } from '@/lib/tasks'
+import { PRIORITY_LABELS, REPEAT_LABELS, type Column, type Priority, type Repeat } from '@/lib/tasks'
 
 export type WritableProject = { id: number; title: string }
 
@@ -39,6 +39,7 @@ export function NewTaskDialog({ open, onClose, projects, defaultProjectId }: {
   const [priority, setPriority] = useState<Priority>('medium')
   const [due, setDue] = useState('')
   const [assignToMe, setAssignToMe] = useState(true)
+  const [repeat, setRepeat] = useState<Repeat>('none')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<{ message: string; fields?: Record<string, string> } | null>(null)
 
@@ -56,7 +57,7 @@ export function NewTaskDialog({ open, onClose, projects, defaultProjectId }: {
 
   const close = () => {
     if (busy) return
-    setTitle(''); setPriority('medium'); setDue(''); setAssignToMe(true); setError(null); setColumnId(null)
+    setTitle(''); setPriority('medium'); setDue(''); setAssignToMe(true); setRepeat('none'); setError(null); setColumnId(null)
     onClose()
   }
 
@@ -64,7 +65,7 @@ export function NewTaskDialog({ open, onClose, projects, defaultProjectId }: {
     if (projectId === null) return
     setBusy(true)
     setError(null)
-    const res = await createTaskWithDetails({ boardId: projectId, columnId, title, priority, due_date: due || null, assignToMe })
+    const res = await createTaskWithDetails({ boardId: projectId, columnId, title, priority, due_date: due || null, assignToMe, repeat })
       .catch(() => ({ ok: false as const, error: NETWORK, fields: undefined }))
     setBusy(false)
     if (!res.ok) return setError({ message: res.error, fields: res.fields })
@@ -113,6 +114,10 @@ export function NewTaskDialog({ open, onClose, projects, defaultProjectId }: {
             </Select>
             <Field label="Vencimiento" name="due_date" type="date" value={due} onChange={(e) => setDue(e.target.value)} />
           </div>
+          <Select label="Repetir" name="repeat" value={repeat} onChange={(e) => setRepeat(e.target.value as Repeat)}
+            hint={repeat !== 'none' ? 'Al terminarla se crea la próxima, con la fecha siguiente.' : undefined}>
+            {(Object.keys(REPEAT_LABELS) as Repeat[]).map((r) => <option key={r} value={r}>{REPEAT_LABELS[r]}</option>)}
+          </Select>
           <label className="flex items-center gap-2 text-[13px]">
             <input type="checkbox" checked={assignToMe} onChange={(e) => setAssignToMe(e.target.checked)} className="accent-[var(--color-accent)]" />
             Asignármela

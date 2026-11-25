@@ -19,12 +19,22 @@ export type Task = {
   position: number
   completed_at: string | null
   comments_count: number
+  repeat?: Repeat
   created_by?: Person | null
   created_at?: string
   updated_at?: string
 }
 
 export type PersonWithRole = Person & { role: BoardRole }
+
+export type Repeat = 'none' | 'daily' | 'weekdays' | 'weekly' | 'monthly'
+export const REPEAT_LABELS: Record<Repeat, string> = {
+  none: 'No se repite',
+  daily: 'Todos los días',
+  weekdays: 'Días hábiles (lun. a vie.)',
+  weekly: 'Todas las semanas',
+  monthly: 'Todos los meses',
+}
 
 export type Comment = { id: number; task: number; author: Person | null; text: string; mentions?: Person[]; created_at: string; updated_at: string }
 

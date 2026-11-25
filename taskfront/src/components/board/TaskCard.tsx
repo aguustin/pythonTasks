@@ -4,11 +4,11 @@ import { useSortable } from '@dnd-kit/sortable'
 import Link from 'next/link'
 import { memo } from 'react'
 import { CSS } from '@dnd-kit/utilities'
-import { ChevronDown, ChevronsUp, ChevronUp, GripVertical, MessageSquare, MoveRight } from 'lucide-react'
+import { ChevronDown, ChevronsUp, ChevronUp, GripVertical, MessageSquare, MoveRight, Repeat2 } from 'lucide-react'
 
 import { ActionMenu } from '@/components/ui/ActionMenu'
 import { Avatar } from '@/components/ui/Badges'
-import { dueLabel, dueState, PRIORITY_LABELS, type Column, type Priority, type Task } from '@/lib/tasks'
+import { dueLabel, dueState, PRIORITY_LABELS, REPEAT_LABELS, type Column, type Priority, type Task } from '@/lib/tasks'
 
 /** Prioridad con ícono + texto; "Media" es la normal y no se muestra (identidad §6). */
 const PRIORITY_STYLE: Record<Exclude<Priority, 'medium'>, { icon: typeof ChevronUp; cls: string }> = {
@@ -48,12 +48,18 @@ export function DueTag({ due, done, today }: { due: string | null; done: boolean
 
 /** Datos de la tarjeta debajo del título; nada si la tarea no tiene ninguno. */
 export function CardMeta({ task, done, today }: { task: Task; done: boolean; today: string }) {
-  const hasMeta = task.priority !== 'medium' || task.due_date || task.comments_count > 0 || task.assignees.length > 0
+  const repeats = Boolean(task.repeat && task.repeat !== 'none')
+  const hasMeta = task.priority !== 'medium' || task.due_date || task.comments_count > 0 || task.assignees.length > 0 || repeats
   if (!hasMeta) return null
   return (
     <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
       <PriorityTag priority={task.priority} />
       <DueTag due={task.due_date} done={done} today={today} />
+      {repeats && (
+        <span className="inline-flex items-center text-subtle" title={`Se repite: ${REPEAT_LABELS[task.repeat!].toLowerCase()}`}>
+          <Repeat2 aria-hidden size={13} strokeWidth={1.75} /><span className="sr-only">Se repite: {REPEAT_LABELS[task.repeat!].toLowerCase()}</span>
+        </span>
+      )}
       {task.comments_count > 0 && (
         <span className="inline-flex items-center gap-1 font-mono text-[11px] text-subtle" title={`${task.comments_count} comentarios`}>
           <MessageSquare aria-hidden size={12} strokeWidth={1.75} /> {task.comments_count}

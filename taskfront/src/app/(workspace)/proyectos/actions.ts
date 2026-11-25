@@ -6,7 +6,7 @@ import { redirect } from 'next/navigation'
 import type { Activity, Page } from '@/lib/activity'
 import { failure, type ActionResult } from '@/lib/forms'
 import type { BoardRole, Project, ProjectStatus } from '@/lib/projects'
-import type { Column, Comment, Priority, Task } from '@/lib/tasks'
+import type { Column, Comment, Priority, Repeat, Task } from '@/lib/tasks'
 import { PROJECT_COLORS } from '@/lib/palette'
 import { apiAction, requireUser } from '@/lib/server/dal'
 import { requireActiveOrganization } from '@/lib/server/organization'
@@ -218,7 +218,10 @@ export type TaskChanges = Partial<{
   priority: Priority
   due_date: string | null
   assignee_ids: number[]
+  repeat: Repeat
 }>
+
+const REPEATS: Repeat[] = ['none', 'daily', 'weekdays', 'weekly', 'monthly']
 
 /** Guardado por campo desde el panel de la tarea (editor o más). */
 export async function updateTask(taskId: number, changes: TaskChanges): Promise<ActionResult<Task>> {
@@ -237,6 +240,10 @@ export async function updateTask(taskId: number, changes: TaskChanges): Promise<
   if (changes.due_date !== undefined) {
     if (!isDate(changes.due_date || null)) return { ok: false, error: 'Fecha inválida.' }
     body.due_date = changes.due_date || null
+  }
+  if (changes.repeat !== undefined) {
+    if (!REPEATS.includes(changes.repeat)) return { ok: false, error: 'Repetición inválida.' }
+    body.repeat = changes.repeat
   }
   if (changes.assignee_ids !== undefined) body.assignee_ids = [...new Set(changes.assignee_ids.filter(validId))]
   const res = await apiAction<Task>(`/tasks/${taskId}/`, 'PATCH', body)
@@ -388,6 +395,7 @@ export type NewTaskInput = {
   priority: Priority
   due_date: string | null
   assignToMe: boolean
+  repeat?: Repeat
 }
 
 /** F7 — "+ Nueva tarea" global: proyecto → título → opcionales. */
@@ -398,10 +406,27 @@ export async function createTaskWithDetails(input: NewTaskInput): Promise<Action
   if (!PRIORITY_VALUES.includes(input.priority)) return { ok: false, error: 'Prioridad inválida.' }
   if (!isDate(input.due_date || null)) return { ok: false, error: 'Fecha inválida.' }
   const body: Record<string, unknown> = { title: title.slice(0, 200), priority: input.priority, due_date: input.due_date || null }
+  if (input.repeat && input.repeat !== 'none' && REPEATS.includes(input.repeat)) body.repeat = input.repeat
   if (input.columnId !== null && validId(input.columnId)) body.column = input.columnId
   if (input.assignToMe) body.assignee_ids = [(await requireUser()).id] // de la sesión, no del cliente
   const res = await apiAction<Task>(`/boards/${input.boardId}/tasks/`, 'POST', body)
   if (!res.ok) return failure(res)
   revalidatePath('/', 'layout') // avance en el menú lateral, Inicio y Mis tareas
+  return { ok: true, data: res.data }
+}
+
+/** Plantillas: duplicar un proyecto como punto de partida (también si está archivado). */
+export async function duplicateProject(id: number, input: { title: string; includeTasks: boolean; includeMembers: boolean; keepDates: boolean }): Promise<ActionResult<{ id: number }>> {
+  if (!validId(id)) return { ok: false, error: 'Proyecto inválido.' }
+  const title = input.title.trim()
+  if (!title) return { ok: false, error: 'Poné un nombre para el proyecto.', fields: { title: 'Este campo es obligatorio.' } }
+  const res = await apiAction<{ id: number }>(`/boards/${id}/duplicate/`, 'POST', {
+    title: title.slice(0, 100),
+    include_tasks: Boolean(input.includeTasks),
+    include_members: Boolean(input.includeMembers),
+    keep_dates: Boolean(input.includeTasks && input.keepDates),
+  })
+  if (!res.ok) return failure(res)
+  refresh(res.data.id)
   return { ok: true, data: res.data }
 }

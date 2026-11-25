@@ -202,4 +202,101 @@ def move_task(task, column, position, actor):
         if column.is_done and not source.is_done:
             from notifications.services import notify_completed  # evita importación circular
             notify_completed(task, actor)
+            spawn_next_occurrence(task, actor)
     return task
+
+
+# ── Recurrencia ──────────────────────────────────────────────────────────────
+
+def next_due_date(due, today, repeat):
+    """
+    Próxima fecha de una tarea que se repite: se avanza desde su vencimiento (o desde hoy si no
+    tenía) hasta la primera fecha posterior a hoy. Así, si se terminó tarde, no quedan
+    repeticiones ya vencidas. Mensual: mismo día del mes, o el último si ese mes es más corto.
+    """
+    import calendar
+    from datetime import timedelta
+
+    from boards.models import Repeat
+
+    def step(d):
+        if repeat == Repeat.DAILY:
+            return d + timedelta(days=1)
+        if repeat == Repeat.WEEKDAYS:
+            d += timedelta(days=1)
+            while d.weekday() >= 5:  # sábado o domingo
+                d += timedelta(days=1)
+            return d
+        if repeat == Repeat.WEEKLY:
+            return d + timedelta(days=7)
+        if repeat == Repeat.MONTHLY:
+            day = anchor.day
+            y, m = (d.year + 1, 1) if d.month == 12 else (d.year, d.month + 1)
+            return d.replace(year=y, month=m, day=min(day, calendar.monthrange(y, m)[1]))
+        raise ValueError(repeat)
+
+    anchor = due or today
+    d = step(anchor)
+    while d <= today:
+        d = step(d)
+    return d
+
+
+def spawn_next_occurrence(task, actor):
+    """Al terminar una tarea que se repite, crea la próxima (una sola vez por tarea)."""
+    from boards.models import Repeat
+
+    if task.repeat == Repeat.NONE or task.next_occurrence_id:
+        return None
+    column = task.board.columns.filter(is_done=False).order_by('position').first()
+    if column is None:
+        return None
+    nxt = Task.objects.create(
+        board=task.board, column=column, position=next_position(column), created_by=actor,
+        title=task.title, description=task.description, priority=task.priority, repeat=task.repeat,
+        due_date=next_due_date(task.due_date, timezone.localdate(), task.repeat),
+    )
+    nxt.assignees.set(task.assignees.all())
+    nxt.followers.set(task.followers.all())
+    task.next_occurrence = nxt
+    task.save(update_fields=['next_occurrence'])
+    log(task.board, actor, Activity.Verb.TASK_CREATED, task=nxt, title=nxt.title, repeated=True)
+    return nxt
+
+
+# ── Duplicar proyecto (plantillas) ───────────────────────────────────────────
+
+@transaction.atomic
+def duplicate_board(source, user, *, title, include_tasks=False, include_members=False, keep_dates=False):
+    """
+    Copia un proyecto como punto de partida (sirve de plantilla, aunque esté archivado).
+    - Siempre: descripción, color, acceso, columnas. Quien duplica queda como líder.
+    - include_members: solo si quien duplica es líder del original (si no, se ignora).
+    - include_tasks: solo las abiertas, sin comentarios ni historial; responsables que no
+      tengan acceso al proyecto nuevo se omiten (D18). Fechas solo con keep_dates.
+    """
+    from boards.access import board_role
+
+    board = Board.objects.create(
+        organization=source.organization, created_by=user, title=title, description=source.description,
+        color=source.color, visibility=source.visibility, organization_role=source.organization_role,
+    )
+    columns = {}
+    for col in source.columns.order_by('position'):
+        columns[col.pk] = Column.objects.create(
+            board=board, name=col.name, color=col.color, is_done=col.is_done, position=col.position,
+        )
+    BoardMember.objects.create(board=board, user=user, role=BoardRole.ADMIN)
+    if include_members and board_role(user, source) == BoardRole.ADMIN:
+        for m in source.members.exclude(user=user):
+            BoardMember.objects.create(board=board, user=m.user, role=m.role)
+    if include_tasks:
+        for t in source.tasks.filter(column__is_done=False).order_by('column__position', 'position', 'id'):
+            copy = Task.objects.create(
+                board=board, column=columns[t.column_id], position=t.position, created_by=user,
+                title=t.title, description=t.description, priority=t.priority, repeat=t.repeat,
+                due_date=t.due_date if keep_dates else None,
+            )
+            copy.assignees.set([u for u in t.assignees.all() if board_role(u, board) is not None])
+    log(board, user, Activity.Verb.BOARD_CREATED, title=board.title, duplicated_from=source.title)
+    return board

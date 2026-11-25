@@ -113,6 +113,7 @@ El link de invitación es `{FRONTEND_URL}/invitacion/{token}`.
 | GET | `boards/{id}/` | lector (incluye `columns`) |
 | PATCH/DELETE | `boards/{id}/` | admin. `status` (`active`/`on_hold`/`completed`), `start_date`, `due_date`. Archivado = solo lectura |
 | POST | `boards/{id}/archive/` · `boards/{id}/restore/` | admin |
+| POST | `boards/{id}/duplicate/` | lector e integrante de la org · `{title, include_tasks?, include_members?, keep_dates?}` → `{id}`. Plantillas: copia columnas y acceso; tareas abiertas opcionales; miembros solo si duplica un líder; responsables sin acceso se omiten |
 | POST/DELETE | `boards/{id}/favorite/` | lector · favorito personal |
 | POST | `boards/{id}/access-preview/` | admin · `{visibility?, remove_user_ids?}` → responsables que perderían el acceso (no cambia nada) |
 | GET/POST | `boards/{id}/members/` | lector / admin · `{user_id, role}` |
@@ -141,7 +142,12 @@ proyecto, el proyecto pasa a privado, baja de rol en la organización), deja de 
 queda registrado en la actividad (`assignees_removed`). Las vistas previas sirven para avisar antes de confirmar.
 
 **Tarea:** `title`, `description`, `priority` (`low`/`medium`/`high`/`urgent`), `due_date`,
-`column`, `assignee_ids` (escritura) / `assignees` (lectura). Para cambiar de columna se usa `move/`.
+`column`, `assignee_ids` (escritura) / `assignees` (lectura), `repeat` (`none`/`daily`/`weekdays`/`weekly`/`monthly`).
+Para cambiar de columna se usa `move/`.
+
+**Recurrencia:** al pasar a una columna de terminadas, una tarea que se repite crea la próxima (misma información y
+responsables) en la primera columna sin terminar, con la siguiente fecha posterior a hoy. Se crea una sola vez por
+tarea, aunque se reabra y se vuelva a terminar. Sin tareas programadas en el servidor.
 
 **Filtros** (`boards/{id}/tasks/` y `my-tasks/`): `assignee=<id>|me|none`, `priority=high,urgent`,
 `due=overdue|today|week|none`, `status=open|done|all`, `column=<id>`, `q=texto`.

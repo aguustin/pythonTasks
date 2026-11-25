@@ -36,8 +36,9 @@ export function MyTaskRow({ task, today, orgName }: { task: MyTask; today: strin
     const previous = res.data.previous
     toast({
       tone: 'success',
-      message: `«${task.title}» marcada como hecha.`,
-      undo: previous ? async () => {
+      message: task.repeat && task.repeat !== 'none' ? `«${task.title}» marcada como hecha. Ya está creada la próxima.` : `«${task.title}» marcada como hecha.`,
+      // Si se repite, al terminarla ya se creó la próxima: deshacer no la quitaría, así que no se ofrece.
+      undo: previous && (!task.repeat || task.repeat === 'none') ? async () => {
         const back = await moveTask(task.id, previous.column, previous.position).catch(() => ({ ok: false as const, error: NETWORK }))
         if (back.ok) {
           setState('idle')
