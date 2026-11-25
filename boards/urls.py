@@ -2,6 +2,7 @@ from django.urls import path
 from rest_framework.routers import SimpleRouter
 
 from boards import views
+from boards.search import SearchView
 
 router = SimpleRouter()
 router.register('boards', views.BoardViewSet, basename='board')
@@ -30,6 +31,7 @@ urlpatterns = router.urls + [
     path('tasks/<int:task_pk>/checklist/', views.TaskChecklistView.as_view(), name='task-checklist'),
     path('tasks/<int:task_pk>/comments/', views.TaskCommentListView.as_view(), name='task-comments'),
     path('my-tasks/', views.MyTasksView.as_view(), name='my-tasks'),
+    path('search/', SearchView.as_view(), name='search'),
     path('organizations/<int:org_pk>/home/', views.HomeView.as_view(), name='org-home'),
     path('organizations/<int:org_pk>/activity/', views.OrganizationActivityView.as_view(), name='org-activity'),
 ]

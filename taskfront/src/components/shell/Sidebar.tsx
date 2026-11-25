@@ -1,6 +1,6 @@
 'use client'
 
-import { Bell, FolderKanban, House, ListChecks, Plus, Settings, Star, Users, type LucideIcon } from 'lucide-react'
+import { Bell, FolderKanban, House, ListChecks, Plus, Search, Settings, Star, Users, type LucideIcon } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
@@ -89,7 +89,7 @@ function ProjectLink({ project, onNavigate }: { project: SidebarProject; onNavig
   )
 }
 
-export function Sidebar({ organizations, activeOrgId, user, projects, moreProjects, onNavigate, onNewTask, unread }: {
+export function Sidebar({ organizations, activeOrgId, user, projects, moreProjects, onNavigate, onNewTask, onSearch, unread }: {
   organizations: { id: number; name: string; my_role: OrgRole }[]
   activeOrgId: number
   user: { full_name: string; email: string }
@@ -97,6 +97,7 @@ export function Sidebar({ organizations, activeOrgId, user, projects, moreProjec
   moreProjects: number
   onNavigate?: () => void
   onNewTask: () => void
+  onSearch: () => void
   /** Avisos sin leer (contador de Notificaciones). */
   unread: number
 }) {
@@ -110,6 +111,11 @@ export function Sidebar({ organizations, activeOrgId, user, projects, moreProjec
         className="mt-3 flex h-8 w-full items-center gap-2 rounded-[var(--radius-sm)] bg-accent px-2.5 text-[13px] font-semibold text-on-accent hover:bg-accent-hover">
         <Plus aria-hidden size={16} /> Nueva tarea
         <kbd className="ml-auto rounded border border-white/30 px-1.5 font-mono text-[10px] font-normal opacity-80">N</kbd>
+      </button>
+      <button type="button" onClick={onSearch} aria-keyshortcuts="Control+K Meta+K"
+        className="mt-1.5 flex h-8 w-full items-center gap-2 rounded-[var(--radius-sm)] border border-sidebar-border px-2.5 text-[13px] text-sidebar-item hover:bg-sidebar-item-hover-bg hover:text-sidebar-item-hover">
+        <Search aria-hidden size={15} /> Buscar
+        <kbd className="ml-auto rounded border border-sidebar-border px-1.5 font-mono text-[10px]">Ctrl K</kbd>
       </button>
 
       <nav aria-label="Principal" className="flex min-h-0 flex-1 flex-col">

@@ -11,6 +11,7 @@ import type { OrgRole } from '@/lib/labels'
 
 import { getUnreadCount } from '@/app/(workspace)/notificaciones/actions'
 
+import { CommandPalette } from './CommandPalette'
 import { NewTaskDialog, type WritableProject } from './NewTaskDialog'
 import { Sidebar, type SidebarProject } from './Sidebar'
 
@@ -24,6 +25,7 @@ const typing = (el: Element | null) =>
  * inferior con lo de todos los días y el menú completo en un cajón.
  *
  * Atajos globales (fuera de campos de texto y diálogos): N nueva tarea · / buscar o filtrar.
+ * Ctrl/⌘ K abre la búsqueda global desde cualquier lugar.
  * En el tablero, además: M mover la tarea enfocada o abierta. Esc cierra lo que esté abierto.
  */
 export function AppShell({ user, organizations, activeOrgId, projects, moreProjects, writableProjects, initialUnread, children }: {
@@ -71,6 +73,19 @@ export function AppShell({ user, organizations, activeOrgId, projects, moreProje
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [])
+  // Búsqueda global: Ctrl/⌘ K desde cualquier lugar (también escribiendo), salvo con un diálogo abierto.
+  const [search, setSearch] = useState(false)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() !== 'k' || !(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return
+      if (document.querySelector('dialog[open]')) return
+      e.preventDefault()
+      setSearch(true)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [])
+
   // Contador de avisos: cada minuto y al navegar (el layout no se vuelve a pedir al servidor).
   const [unread, setUnread] = useState(initialUnread)
   useEffect(() => {
@@ -83,7 +98,11 @@ export function AppShell({ user, organizations, activeOrgId, projects, moreProje
 
   const currentProject = Number(/^\/proyectos\/(\d+)/.exec(pathname)?.[1]) || null
 
-  const sidebarProps = { organizations, activeOrgId, user, projects, moreProjects, unread, onNewTask: () => { setDrawer(false); setNewTask(true) } }
+  const sidebarProps = {
+    organizations, activeOrgId, user, projects, moreProjects, unread,
+    onNewTask: () => { setDrawer(false); setNewTask(true) },
+    onSearch: () => { setDrawer(false); setSearch(true) },
+  }
 
   return (
     // --bottom-bar: alto de la barra inferior (celular). Envuelve también a los avisos, que se
@@ -126,6 +145,7 @@ export function AppShell({ user, organizations, activeOrgId, projects, moreProje
           </main>
         </div>
         <BottomBar pathname={pathname} unread={unread} onNewTask={() => setNewTask(true)} onMenu={() => setDrawer(true)} />
+        <CommandPalette open={search} onClose={() => setSearch(false)} onNewTask={() => setNewTask(true)} />
         {newTask && (
           <NewTaskDialog open onClose={() => setNewTask(false)} projects={writableProjects} defaultProjectId={currentProject} />
         )}

@@ -349,3 +349,22 @@ class DuplicateProjectAccessTests(BaseAPITest):
         self.add_member(self.org, stranger)
         self.as_user(stranger)  # integrante sin acceso al proyecto privado
         self.assertEqual(self.client.post(f'/api/v1/boards/{self.src}/duplicate/', {'title': 'X'}, format='json').status_code, 404)
+
+
+class GlobalSearchAccessTests(BaseAPITest):
+    """La búsqueda nunca devuelve proyectos ni tareas que la persona no puede ver."""
+
+    def test_only_visible_projects_and_tasks(self):
+        owner, member = self.make_user('owner'), self.make_user('member')
+        org = self.make_org(owner)
+        self.add_member(org, member)
+        public = self.make_board(owner, org, visibility='organization', title='Caja pública')['id']
+        private = self.make_board(owner, org, visibility='private', title='Caja secreta')['id']
+        self.make_task(public, title='Contar caja chica')
+        self.make_task(private, title='Caja fuerte: clave')
+        other_org = self.make_org(self.make_user('other'), name='Otra')
+        self.as_user(member)
+        res = self.client.get(f'/api/v1/search/?organization={org.id}&q=caja')
+        self.assertEqual([p['title'] for p in res.data['projects']], ['Caja pública'])
+        self.assertEqual([t['title'] for t in res.data['tasks']], ['Contar caja chica'])
+        self.assertEqual(self.client.get(f'/api/v1/search/?organization={other_org.id}&q=caja').status_code, 404)

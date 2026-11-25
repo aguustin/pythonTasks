@@ -40,7 +40,7 @@ Los permisos los aplica la API en cada operación; el frontend solo oculta lo qu
 
 ## Atajos de teclado
 
-Fuera de campos de texto y diálogos: **N** nueva tarea · **/** ir al buscador del tablero · **M** mover la
+**Ctrl/⌘ K** búsqueda global (desde cualquier lugar). Fuera de campos de texto y diálogos: **N** nueva tarea · **/** ir al buscador del tablero · **M** mover la
 tarea enfocada (o, con el panel abierto, ir al selector de columna) · **Esc** cierra panel, menú o diálogo.
 Arrastrar con teclado: foco en el asa de la tarjeta, espacio para tomar, flechas, espacio para soltar.
 

@@ -139,6 +139,7 @@ El link de invitación es `{FRONTEND_URL}/invitacion/{token}`.
 | GET | `notifications/?organization={id}[&unread=true]` | mis avisos (paginado) en proyectos que hoy puedo ver |
 | GET | `notifications/unread-count/?organization={id}` | `{count}` |
 | POST | `notifications/{id}/read/` · `notifications/read-all/?organization={id}` | marcar como leídos |
+| GET | `search/?organization={id}&q=texto` | miembro · búsqueda global (mín. 2 letras): proyectos (5) y tareas (12) de proyectos visibles y no archivados; tareas abiertas primero |
 | GET | `my-tasks/` | mis tareas asignadas, en todas mis organizaciones (incluye `board_title`, `board_color`, `column_name`, `is_done`) |
 
 **Regla de responsables:** todo responsable tiene acceso al proyecto. Si alguien pierde el acceso (sale del
