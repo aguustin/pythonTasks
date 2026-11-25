@@ -1,6 +1,7 @@
 'use client'
 
 import { useSortable } from '@dnd-kit/sortable'
+import Link from 'next/link'
 import { CSS } from '@dnd-kit/utilities'
 import { ChevronDown, ChevronsUp, ChevronUp, GripVertical, MessageSquare, MoveRight } from 'lucide-react'
 
@@ -84,7 +85,7 @@ export function CardBody({ task, done, today }: { task: Task; done: boolean; tod
  * Tarjeta arrastrable. Con el mouse se arrastra la tarjeta entera; con el teclado, el asa
  * (espacio para tomar, flechas, espacio para soltar). "Mover a…" es la alternativa sin arrastre.
  */
-export function TaskCard({ task, done, today, canMove, columns, currentColumn, onMoveTo }: {
+export function TaskCard({ task, done, today, canMove, columns, currentColumn, onMoveTo, href, selected, onOpen }: {
   task: Task
   done: boolean
   today: string
@@ -93,6 +94,10 @@ export function TaskCard({ task, done, today, canMove, columns, currentColumn, o
   /** Columna en la que se ve ahora (puede diferir de task.column mientras hay cambios pendientes). */
   currentColumn: number
   onMoveTo: (columnId: number) => void
+  /** Enlace al panel de la tarea (?tarea=id); toda la tarjeta lo abre. */
+  href: string
+  selected: boolean
+  onOpen: () => void
 }) {
   const { setNodeRef, setActivatorNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({
     id: task.id,
@@ -110,14 +115,21 @@ export function TaskCard({ task, done, today, canMove, columns, currentColumn, o
       style={{ transform: CSS.Transform.toString(transform), transition }}
       {...pointer}
       data-task-id={task.id}
-      className={`group relative rounded-[var(--radius-md)] border border-border bg-surface px-3 py-2.5 ${
-        canMove ? 'cursor-grab active:cursor-grabbing' : ''
-      } ${isDragging ? 'opacity-40' : 'hover:border-border-strong'}`}
+      className={`group relative rounded-[var(--radius-md)] border bg-surface px-3 py-2.5 ${
+        canMove ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
+      } ${selected ? 'border-accent shadow-[0_0_0_1px_var(--color-accent)]' : 'border-border'} ${isDragging ? 'opacity-40' : 'hover:border-border-strong'}`}
     >
       <div className="flex items-start gap-1">
-        <p className={`min-w-0 flex-1 py-0.5 text-[13px] leading-snug ${done ? 'text-muted' : 'text-text'}`}>{task.title}</p>
+        <p className={`min-w-0 flex-1 py-0.5 text-[13px] leading-snug ${done ? 'text-muted' : 'text-text'}`}>
+          {/* El enlace cubre la tarjeta (after:inset-0); los controles quedan por encima (z-10). */}
+          <Link href={href} scroll={false} aria-current={selected ? 'true' : undefined}
+            onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); onOpen() }}
+            className="outline-none after:absolute after:inset-0 after:rounded-[var(--radius-md)] focus-visible:after:shadow-[0_0_0_2px_var(--color-focus)]">
+            {task.title}
+          </Link>
+        </p>
         {canMove && (
-          <div className="-mr-1.5 -mt-0.5 flex shrink-0 items-center opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100">
+          <div className="relative z-10 -mr-1.5 -mt-0.5 flex shrink-0 items-center opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100">
             {others.length > 0 && (
               <div onMouseDown={stop} onTouchStart={stop} onKeyDown={stop}>
                 <ActionMenu label={`Mover ${task.title} a otra columna`}

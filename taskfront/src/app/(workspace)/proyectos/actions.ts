@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 
 import { failure, type ActionResult } from '@/lib/forms'
 import type { BoardRole, Project, ProjectStatus } from '@/lib/projects'
-import type { Task } from '@/lib/tasks'
+import type { Column, Comment, Priority, Task } from '@/lib/tasks'
 import { PROJECT_COLORS } from '@/lib/palette'
 import { apiAction } from '@/lib/server/dal'
 import { requireActiveOrganization } from '@/lib/server/organization'
@@ -203,7 +203,120 @@ export async function moveTask(taskId: number, columnId: number, position: numbe
     return { ok: false, error: 'Datos inválidos.' }
   }
   const res = await apiAction<Task>(`/tasks/${taskId}/move/`, 'POST', { column: columnId, position })
-  if (!res.ok && res.status === 404) return { ok: false, error: 'La tarea ya no existe: puede que alguien la haya eliminado.' }
+  if (!res.ok && res.status === 404) return { ok: false, error: GONE }
   if (!res.ok) return failure(res)
   return { ok: true, data: res.data }
+}
+
+const GONE = 'La tarea ya no existe: puede que alguien la haya eliminado.'
+const PRIORITY_VALUES: Priority[] = ['low', 'medium', 'high', 'urgent']
+
+export type TaskChanges = Partial<{
+  title: string
+  description: string
+  priority: Priority
+  due_date: string | null
+  assignee_ids: number[]
+}>
+
+/** Guardado por campo desde el panel de la tarea (editor o más). */
+export async function updateTask(taskId: number, changes: TaskChanges): Promise<ActionResult<Task>> {
+  if (!validId(taskId)) return { ok: false, error: 'Tarea inválida.' }
+  const body: Record<string, unknown> = {}
+  if (changes.title !== undefined) {
+    const title = changes.title.trim()
+    if (!title) return { ok: false, error: 'El título es obligatorio.' }
+    body.title = title.slice(0, 200)
+  }
+  if (changes.description !== undefined) body.description = changes.description.slice(0, 10_000)
+  if (changes.priority !== undefined) {
+    if (!PRIORITY_VALUES.includes(changes.priority)) return { ok: false, error: 'Prioridad inválida.' }
+    body.priority = changes.priority
+  }
+  if (changes.due_date !== undefined) {
+    if (!isDate(changes.due_date || null)) return { ok: false, error: 'Fecha inválida.' }
+    body.due_date = changes.due_date || null
+  }
+  if (changes.assignee_ids !== undefined) body.assignee_ids = [...new Set(changes.assignee_ids.filter(validId))]
+  const res = await apiAction<Task>(`/tasks/${taskId}/`, 'PATCH', body)
+  if (!res.ok && res.status === 404) return { ok: false, error: GONE }
+  if (!res.ok) return failure(res)
+  return { ok: true, data: res.data }
+}
+
+export async function deleteTask(taskId: number): Promise<ActionResult> {
+  if (!validId(taskId)) return { ok: false, error: 'Tarea inválida.' }
+  const res = await apiAction(`/tasks/${taskId}/`, 'DELETE')
+  if (!res.ok && res.status !== 404) return failure(res) // si ya no existía, el resultado es el mismo
+  return { ok: true, data: undefined }
+}
+
+// ── Comentarios ──────────────────────────────────────────────────────────────
+
+export async function addComment(taskId: number, text: string): Promise<ActionResult<Comment>> {
+  const clean = text.trim()
+  if (!validId(taskId)) return { ok: false, error: 'Tarea inválida.' }
+  if (!clean) return { ok: false, error: 'Escribí un comentario.' }
+  const res = await apiAction<Comment>(`/tasks/${taskId}/comments/`, 'POST', { text: clean.slice(0, 5000) })
+  if (!res.ok && res.status === 404) return { ok: false, error: GONE }
+  if (!res.ok) return failure(res)
+  return { ok: true, data: res.data }
+}
+
+export async function editComment(commentId: number, text: string): Promise<ActionResult<Comment>> {
+  const clean = text.trim()
+  if (!validId(commentId)) return { ok: false, error: 'Comentario inválido.' }
+  if (!clean) return { ok: false, error: 'El comentario no puede quedar vacío.' }
+  const res = await apiAction<Comment>(`/comments/${commentId}/`, 'PATCH', { text: clean.slice(0, 5000) })
+  if (!res.ok && res.status === 404) return { ok: false, error: 'El comentario ya no existe.' }
+  if (!res.ok) return failure(res)
+  return { ok: true, data: res.data }
+}
+
+export async function deleteComment(commentId: number): Promise<ActionResult> {
+  if (!validId(commentId)) return { ok: false, error: 'Comentario inválido.' }
+  const res = await apiAction(`/comments/${commentId}/`, 'DELETE')
+  if (!res.ok && res.status !== 404) return failure(res)
+  return { ok: true, data: undefined }
+}
+
+// ── Columnas (líder) ─────────────────────────────────────────────────────────
+
+const MAX_COLUMN_NAME = 40
+
+export async function createColumn(boardId: number, name: string): Promise<ActionResult<Column>> {
+  const clean = name.trim()
+  if (!validId(boardId)) return { ok: false, error: 'Proyecto inválido.' }
+  if (!clean) return { ok: false, error: 'Poné un nombre para la columna.' }
+  const res = await apiAction<Column>(`/boards/${boardId}/columns/`, 'POST', { name: clean.slice(0, MAX_COLUMN_NAME) })
+  if (!res.ok) return failure(res)
+  return { ok: true, data: res.data }
+}
+
+export async function updateColumn(boardId: number, columnId: number, changes: { name?: string; is_done?: boolean }): Promise<ActionResult<Column>> {
+  if (!validId(boardId) || !validId(columnId)) return { ok: false, error: 'Columna inválida.' }
+  const body: Record<string, unknown> = {}
+  if (changes.name !== undefined) {
+    if (!changes.name.trim()) return { ok: false, error: 'El nombre es obligatorio.' }
+    body.name = changes.name.trim().slice(0, MAX_COLUMN_NAME)
+  }
+  if (changes.is_done !== undefined) body.is_done = Boolean(changes.is_done)
+  const res = await apiAction<Column>(`/boards/${boardId}/columns/${columnId}/`, 'PATCH', body)
+  if (!res.ok) return failure(res)
+  return { ok: true, data: res.data }
+}
+
+export async function reorderColumns(boardId: number, order: number[]): Promise<ActionResult> {
+  if (!validId(boardId) || !order.every(validId)) return { ok: false, error: 'Datos inválidos.' }
+  const res = await apiAction(`/boards/${boardId}/columns/reorder/`, 'POST', { order })
+  if (!res.ok) return failure(res)
+  return { ok: true, data: undefined }
+}
+
+/** Eliminar columna; si tiene tareas, `moveTo` indica a qué columna pasan. */
+export async function deleteColumn(boardId: number, columnId: number, moveTo: number | null): Promise<ActionResult> {
+  if (!validId(boardId) || !validId(columnId) || (moveTo !== null && !validId(moveTo))) return { ok: false, error: 'Datos inválidos.' }
+  const res = await apiAction(`/boards/${boardId}/columns/${columnId}/${moveTo ? `?move_to=${moveTo}` : ''}`, 'DELETE')
+  if (!res.ok) return failure(res)
+  return { ok: true, data: undefined }
 }

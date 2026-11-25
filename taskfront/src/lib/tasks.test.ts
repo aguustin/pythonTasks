@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { canMoveTask, dueLabel, dueState, groupByColumn, locate, moveInGroups, type Column, type Task } from './tasks.ts'
+import {
+  activeFilters, canMoveTask, dueLabel, dueState, EMPTY_FILTERS, groupByColumn, locate, matchesFilters, moveInGroups,
+  parseFilters, writeFilters, type Column, type Task,
+} from './tasks.ts'
 
 const today = '2026-11-24'
 
@@ -48,4 +51,44 @@ test('mover entre columnas y dentro de una columna', () => {
   assert.deepEqual(g, { 1: [10, 11, 12], 2: [20] }) // inmutable
   assert.deepEqual(locate(g, 12), { column: 1, index: 2 })
   assert.equal(locate(g, 99), null)
+})
+
+const task = (over: Partial<Task>): Task => ({
+  id: 1, board: 1, column: 1, title: 'Reponer gaseosas', description: 'Revisar la cámara', priority: 'medium',
+  due_date: null, assignees: [], position: 0, completed_at: null, comments_count: 0, ...over,
+})
+const ctx = { userId: 7, today, done: false }
+
+test('filtros: texto sin acentos en título y descripción', () => {
+  assert.equal(matchesFilters(task({}), { ...EMPTY_FILTERS, q: 'CAMARA' }, ctx), true)
+  assert.equal(matchesFilters(task({}), { ...EMPTY_FILTERS, q: 'leche' }, ctx), false)
+})
+
+test('filtros: responsables y solo mis tareas', () => {
+  const mine = task({ assignees: [{ id: 7, email: '', full_name: 'Eva' }] })
+  assert.equal(matchesFilters(mine, { ...EMPTY_FILTERS, mine: true }, ctx), true)
+  assert.equal(matchesFilters(task({}), { ...EMPTY_FILTERS, mine: true }, ctx), false)
+  assert.equal(matchesFilters(task({}), { ...EMPTY_FILTERS, assignee: 'none' }, ctx), true)
+  assert.equal(matchesFilters(mine, { ...EMPTY_FILTERS, assignee: 'none' }, ctx), false)
+  assert.equal(matchesFilters(mine, { ...EMPTY_FILTERS, assignee: '7' }, ctx), true)
+  assert.equal(matchesFilters(mine, { ...EMPTY_FILTERS, assignee: '8' }, ctx), false)
+})
+
+test('filtros: vencimiento con la semántica de la API', () => {
+  const late = task({ due_date: '2026-11-20' })
+  assert.equal(matchesFilters(late, { ...EMPTY_FILTERS, due: 'overdue' }, ctx), true)
+  assert.equal(matchesFilters(late, { ...EMPTY_FILTERS, due: 'overdue' }, { ...ctx, done: true }), false)
+  assert.equal(matchesFilters(task({ due_date: today }), { ...EMPTY_FILTERS, due: 'today' }, ctx), true)
+  assert.equal(matchesFilters(task({ due_date: '2026-12-01' }), { ...EMPTY_FILTERS, due: 'week' }, ctx), true)
+  assert.equal(matchesFilters(task({ due_date: '2026-12-02' }), { ...EMPTY_FILTERS, due: 'week' }, ctx), false)
+  assert.equal(matchesFilters(task({}), { ...EMPTY_FILTERS, due: 'none' }, ctx), true)
+  assert.equal(matchesFilters(task({ priority: 'urgent' }), { ...EMPTY_FILTERS, priority: 'high' }, ctx), false)
+})
+
+test('filtros: lectura y escritura en la URL', () => {
+  const p = new URLSearchParams('tarea=5&responsable=x&prioridad=urgent&vence=week&mias=1&q=pan')
+  const f = parseFilters(p)
+  assert.deepEqual(f, { q: 'pan', assignee: '', priority: 'urgent', due: 'week', mine: true })
+  assert.equal(activeFilters(f), 4)
+  assert.equal(writeFilters(p, EMPTY_FILTERS).toString(), 'tarea=5')
 })

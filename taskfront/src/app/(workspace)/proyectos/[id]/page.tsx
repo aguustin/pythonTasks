@@ -4,18 +4,28 @@ import { Board } from '@/components/board/Board'
 import { PageBody } from '@/components/ui/PageHeader'
 import { todayISO } from '@/lib/projects'
 import { requireUser } from '@/lib/server/dal'
-import { getProject, getTasks } from '@/lib/server/projects'
+import { getPeople, getProject, getTaskDetail, getTasks } from '@/lib/server/projects'
 
 export async function generateMetadata({ params }: PageProps<'/proyectos/[id]'>): Promise<Metadata> {
   const project = await getProject(Number((await params).id))
   return { title: project.title }
 }
 
-/** S4 — Tablero del proyecto: columnas de ancho fijo con desplazamiento horizontal. */
-export default async function ProjectBoardPage({ params }: PageProps<'/proyectos/[id]'>) {
+/**
+ * S4 — Tablero del proyecto: columnas de ancho fijo con desplazamiento horizontal.
+ * Con ?tarea=<id> se abre además el detalle (S5); comentarios e historial se cargan acá.
+ */
+export default async function ProjectBoardPage({ params, searchParams }: PageProps<'/proyectos/[id]'>) {
   const id = Number((await params).id)
   const project = await getProject(id) // 404 si no existe o no hay acceso
-  const [tasks, user] = await Promise.all([getTasks(id), requireUser()])
+  const tarea = (await searchParams).tarea
+  const taskId = Number(Array.isArray(tarea) ? tarea[0] : tarea)
+  const [tasks, people, user, detail] = await Promise.all([
+    getTasks(id),
+    getPeople(id),
+    requireUser(),
+    taskId ? getTaskDetail(id, taskId) : Promise.resolve(null),
+  ])
   const columns = [...(project.columns ?? [])].sort((a, b) => a.position - b.position)
   return (
     <PageBody className="pb-0!">
@@ -24,9 +34,11 @@ export default async function ProjectBoardPage({ params }: PageProps<'/proyectos
         columns={columns}
         tasks={tasks}
         role={project.my_role}
-        userId={user.id}
+        me={{ id: user.id, email: user.email, full_name: user.full_name }}
         archived={Boolean(project.archived_at)}
         today={todayISO()}
+        people={people}
+        detail={detail && { taskId: detail.task.id, comments: detail.comments, history: detail.history }}
       />
     </PageBody>
   )

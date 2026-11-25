@@ -15,7 +15,7 @@ export default async function ProjectLayout({ children, params }: LayoutProps<'/
         crumbs={[{ label: 'Proyectos', href: '/proyectos' }]}
         tabs={[
           { key: 'tablero', label: 'Tablero', href: base },
-          // Actividad llega con el incremento 3.3b: solo se muestran las vistas que existen.
+          { key: 'actividad', label: 'Actividad', href: `${base}/actividad` },
           ...(isLeader(project) ? [{ key: 'configuracion', label: 'Configuración', href: `${base}/configuracion` }] : []),
         ]}
         actions={
