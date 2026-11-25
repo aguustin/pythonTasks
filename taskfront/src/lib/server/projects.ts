@@ -5,7 +5,7 @@ import { cache } from 'react'
 
 import type { Project, ProjectMember } from '../projects.ts'
 import type { Activity, Page } from '../activity.ts'
-import type { Comment, PersonWithRole, Task } from '../tasks.ts'
+import type { ChecklistItem, Comment, Label, PersonWithRole, Task } from '../tasks.ts'
 import { apiRead } from './dal.ts'
 
 /** Proyectos de la organización (activos o archivados). Los favoritos primero, luego por nombre. */
@@ -39,7 +39,7 @@ export async function getTasks(id: number): Promise<Task[]> {
   return res.data
 }
 
-export type TaskDetail = { task: Task; comments: Comment[]; history: Activity[]; following: boolean }
+export type TaskDetail = { task: Task; comments: Comment[]; history: Activity[]; following: boolean; checklist: ChecklistItem[] }
 
 /**
  * Lo que el panel de la tarea necesita además de la tarjeta: comentarios e historial.
@@ -47,15 +47,16 @@ export type TaskDetail = { task: Task; comments: Comment[]; history: Activity[];
  */
 export async function getTaskDetail(projectId: number, taskId: number): Promise<TaskDetail | null> {
   if (!Number.isInteger(taskId) || taskId <= 0) return null
-  const [task, comments, history, follow] = await Promise.all([
+  const [task, comments, history, follow, checklist] = await Promise.all([
     apiRead<Task>(`/tasks/${taskId}/`),
     apiRead<Page<Comment>>(`/tasks/${taskId}/comments/?page_size=200`),
     apiRead<Page<Activity>>(`/boards/${projectId}/activity/?task=${taskId}&page_size=100`),
     apiRead<{ following: boolean }>(`/tasks/${taskId}/follow/`),
+    apiRead<ChecklistItem[]>(`/tasks/${taskId}/checklist/`),
   ])
   if (!task.ok || task.data.board !== projectId) return null
   if (!comments.ok || !history.ok) throw new Error('No se pudo cargar la tarea.')
-  return { task: task.data, comments: comments.data.results, history: history.data.results, following: follow.ok && follow.data.following }
+  return { task: task.data, comments: comments.data.results, history: history.data.results, following: follow.ok && follow.data.following, checklist: checklist.ok ? checklist.data : [] }
 }
 
 /** Actividad del proyecto, de a 50 (la más reciente primero). */
@@ -72,5 +73,12 @@ export async function getProjectActivity(id: number, page = 1): Promise<Page<Act
 export async function getPeople(id: number): Promise<PersonWithRole[]> {
   const res = await apiRead<PersonWithRole[]>(`/boards/${id}/people/`)
   if (!res.ok) throw new Error('No se pudieron cargar las personas del proyecto.')
+  return res.data
+}
+
+/** Etiquetas del proyecto. */
+export async function getLabels(id: number): Promise<Label[]> {
+  const res = await apiRead<Label[]>(`/boards/${id}/labels/`)
+  if (!res.ok) throw new Error('No se pudieron cargar las etiquetas.')
   return res.data
 }

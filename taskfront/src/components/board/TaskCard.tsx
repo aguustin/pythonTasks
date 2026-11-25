@@ -4,9 +4,10 @@ import { useSortable } from '@dnd-kit/sortable'
 import Link from 'next/link'
 import { memo } from 'react'
 import { CSS } from '@dnd-kit/utilities'
-import { ChevronDown, ChevronsUp, ChevronUp, GripVertical, MessageSquare, MoveRight, Repeat2 } from 'lucide-react'
+import { ChevronDown, ChevronsUp, ChevronUp, GripVertical, ListChecks, MessageSquare, MoveRight, Repeat2 } from 'lucide-react'
 
 import { ActionMenu } from '@/components/ui/ActionMenu'
+import { LabelChip } from './Labels'
 import { Avatar } from '@/components/ui/Badges'
 import { dueLabel, dueState, PRIORITY_LABELS, REPEAT_LABELS, type Column, type Priority, type Task } from '@/lib/tasks'
 
@@ -49,15 +50,32 @@ export function DueTag({ due, done, today }: { due: string | null; done: boolean
 /** Datos de la tarjeta debajo del título; nada si la tarea no tiene ninguno. */
 export function CardMeta({ task, done, today }: { task: Task; done: boolean; today: string }) {
   const repeats = Boolean(task.repeat && task.repeat !== 'none')
+  const checklist = task.checklist_total ?? 0
+  const checked = task.checklist_done ?? 0
+  const labels = task.labels ?? []
   const hasMeta = task.priority !== 'medium' || task.due_date || task.comments_count > 0 || task.assignees.length > 0 || repeats
+    || checklist > 0 || labels.length > 0
   if (!hasMeta) return null
   return (
     <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+      {labels.length > 0 && (
+        <span className="flex basis-full flex-wrap gap-1">
+          {labels.slice(0, 4).map((l) => <LabelChip key={l.id} label={l} />)}
+          {labels.length > 4 && <span className="font-mono text-[10.5px] text-subtle">+{labels.length - 4}</span>}
+        </span>
+      )}
       <PriorityTag priority={task.priority} />
       <DueTag due={task.due_date} done={done} today={today} />
       {repeats && (
         <span className="inline-flex items-center text-subtle" title={`Se repite: ${REPEAT_LABELS[task.repeat!].toLowerCase()}`}>
           <Repeat2 aria-hidden size={13} strokeWidth={1.75} /><span className="sr-only">Se repite: {REPEAT_LABELS[task.repeat!].toLowerCase()}</span>
+        </span>
+      )}
+      {checklist > 0 && (
+        <span className={`inline-flex items-center gap-1 font-mono text-[11px] ${checked === checklist ? 'text-success' : 'text-subtle'}`}
+          title={`Checklist: ${checked} de ${checklist}`}>
+          <ListChecks aria-hidden size={12} strokeWidth={1.75} /> {checked}/{checklist}
+          <span className="sr-only">ítems del checklist</span>
         </span>
       )}
       {task.comments_count > 0 && (

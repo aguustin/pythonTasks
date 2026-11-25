@@ -6,7 +6,7 @@ import { redirect } from 'next/navigation'
 import type { Activity, Page } from '@/lib/activity'
 import { failure, type ActionResult } from '@/lib/forms'
 import type { BoardRole, Project, ProjectStatus } from '@/lib/projects'
-import type { Column, Comment, Priority, Repeat, Task } from '@/lib/tasks'
+import type { ChecklistItem, Column, Comment, Label, LabelColor, Priority, Repeat, Task } from '@/lib/tasks'
 import { PROJECT_COLORS } from '@/lib/palette'
 import { apiAction, requireUser } from '@/lib/server/dal'
 import { requireActiveOrganization } from '@/lib/server/organization'
@@ -219,6 +219,7 @@ export type TaskChanges = Partial<{
   due_date: string | null
   assignee_ids: number[]
   repeat: Repeat
+  label_ids: number[]
 }>
 
 const REPEATS: Repeat[] = ['none', 'daily', 'weekdays', 'weekly', 'monthly']
@@ -241,6 +242,7 @@ export async function updateTask(taskId: number, changes: TaskChanges): Promise<
     if (!isDate(changes.due_date || null)) return { ok: false, error: 'Fecha inválida.' }
     body.due_date = changes.due_date || null
   }
+  if (changes.label_ids !== undefined) body.label_ids = [...new Set(changes.label_ids.filter(validId))]
   if (changes.repeat !== undefined) {
     if (!REPEATS.includes(changes.repeat)) return { ok: false, error: 'Repetición inválida.' }
     body.repeat = changes.repeat
@@ -339,7 +341,7 @@ export async function deleteColumn(boardId: number, columnId: number, moveTo: nu
   return { ok: true, data: undefined }
 }
 
-export type TaskDetailData = { taskId: number; comments: Comment[]; history: Activity[]; following: boolean }
+export type TaskDetailData = { taskId: number; comments: Comment[]; history: Activity[]; following: boolean; checklist: ChecklistItem[] }
 
 /**
  * Comentarios e historial de una tarea, para abrir el panel sin volver a renderizar todo el
@@ -347,16 +349,17 @@ export type TaskDetailData = { taskId: number; comments: Comment[]; history: Act
  */
 export async function loadTaskDetail(projectId: number, taskId: number): Promise<ActionResult<TaskDetailData | null>> {
   if (!validId(projectId) || !validId(taskId)) return { ok: true, data: null }
-  const [task, comments, history, follow] = await Promise.all([
+  const [task, comments, history, follow, checklist] = await Promise.all([
     apiAction<Task>(`/tasks/${taskId}/`, 'GET'),
     apiAction<Page<Comment>>(`/tasks/${taskId}/comments/?page_size=200`, 'GET'),
     apiAction<Page<Activity>>(`/boards/${projectId}/activity/?task=${taskId}&page_size=100`, 'GET'),
     apiAction<{ following: boolean }>(`/tasks/${taskId}/follow/`, 'GET'),
+    apiAction<ChecklistItem[]>(`/tasks/${taskId}/checklist/`, 'GET'),
   ])
   if (!task.ok || task.data.board !== projectId) return { ok: true, data: null }
   if (!comments.ok) return failure(comments)
   if (!history.ok) return failure(history)
-  return { ok: true, data: { taskId, comments: comments.data.results, history: history.data.results, following: follow.ok && follow.data.following } }
+  return { ok: true, data: { taskId, comments: comments.data.results, history: history.data.results, following: follow.ok && follow.data.following, checklist: checklist.ok ? checklist.data : [] } }
 }
 
 // ── Mi trabajo (Inicio y Mis tareas) ─────────────────────────────────────────
@@ -429,4 +432,77 @@ export async function duplicateProject(id: number, input: { title: string; inclu
   if (!res.ok) return failure(res)
   refresh(res.data.id)
   return { ok: true, data: res.data }
+}
+
+// ── Etiquetas ────────────────────────────────────────────────────────────────
+
+const LABEL_COLOR_VALUES: LabelColor[] = ['gray', 'red', 'orange', 'yellow', 'green', 'teal', 'blue', 'purple']
+
+/** Crear etiqueta (editor). Se usa desde el panel de la tarea y la configuración. */
+export async function createLabel(boardId: number, name: string, color: LabelColor): Promise<ActionResult<Label>> {
+  const clean = name.trim()
+  if (!validId(boardId)) return { ok: false, error: 'Proyecto inválido.' }
+  if (!clean) return { ok: false, error: 'Poné un nombre para la etiqueta.' }
+  const res = await apiAction<Label>(`/boards/${boardId}/labels/`, 'POST', {
+    name: clean.slice(0, 30), color: LABEL_COLOR_VALUES.includes(color) ? color : 'gray',
+  })
+  if (!res.ok) return failure(res)
+  return { ok: true, data: res.data }
+}
+
+/** Renombrar o cambiar el color (líder). */
+export async function updateLabel(boardId: number, labelId: number, changes: { name?: string; color?: LabelColor }): Promise<ActionResult<Label>> {
+  if (!validId(boardId) || !validId(labelId)) return { ok: false, error: 'Etiqueta inválida.' }
+  const body: Record<string, unknown> = {}
+  if (changes.name !== undefined) {
+    if (!changes.name.trim()) return { ok: false, error: 'El nombre es obligatorio.' }
+    body.name = changes.name.trim().slice(0, 30)
+  }
+  if (changes.color !== undefined && LABEL_COLOR_VALUES.includes(changes.color)) body.color = changes.color
+  const res = await apiAction<Label>(`/boards/${boardId}/labels/${labelId}/`, 'PATCH', body)
+  if (!res.ok) return failure(res)
+  refresh(boardId)
+  return { ok: true, data: res.data }
+}
+
+/** Eliminar (líder): se quita de todas las tareas del proyecto. */
+export async function deleteLabel(boardId: number, labelId: number): Promise<ActionResult> {
+  if (!validId(boardId) || !validId(labelId)) return { ok: false, error: 'Etiqueta inválida.' }
+  const res = await apiAction(`/boards/${boardId}/labels/${labelId}/`, 'DELETE')
+  if (!res.ok && res.status !== 404) return failure(res)
+  refresh(boardId)
+  return { ok: true, data: undefined }
+}
+
+// ── Checklist ────────────────────────────────────────────────────────────────
+
+export async function addChecklistItem(taskId: number, text: string): Promise<ActionResult<ChecklistItem>> {
+  const clean = text.trim()
+  if (!validId(taskId)) return { ok: false, error: 'Tarea inválida.' }
+  if (!clean) return { ok: false, error: 'Escribí el ítem.' }
+  const res = await apiAction<ChecklistItem>(`/tasks/${taskId}/checklist/`, 'POST', { text: clean.slice(0, 200) })
+  if (!res.ok && res.status === 404) return { ok: false, error: GONE }
+  if (!res.ok) return failure(res)
+  return { ok: true, data: res.data }
+}
+
+export async function updateChecklistItem(itemId: number, changes: { text?: string; done?: boolean }): Promise<ActionResult<ChecklistItem>> {
+  if (!validId(itemId)) return { ok: false, error: 'Ítem inválido.' }
+  const body: Record<string, unknown> = {}
+  if (changes.text !== undefined) {
+    if (!changes.text.trim()) return { ok: false, error: 'El ítem no puede quedar vacío.' }
+    body.text = changes.text.trim().slice(0, 200)
+  }
+  if (changes.done !== undefined) body.done = Boolean(changes.done)
+  const res = await apiAction<ChecklistItem>(`/checklist/${itemId}/`, 'PATCH', body)
+  if (!res.ok && res.status === 404) return { ok: false, error: 'El ítem ya no existe.' }
+  if (!res.ok) return failure(res)
+  return { ok: true, data: res.data }
+}
+
+export async function deleteChecklistItem(itemId: number): Promise<ActionResult> {
+  if (!validId(itemId)) return { ok: false, error: 'Ítem inválido.' }
+  const res = await apiAction(`/checklist/${itemId}/`, 'DELETE')
+  if (!res.ok && res.status !== 404) return failure(res)
+  return { ok: true, data: undefined }
 }

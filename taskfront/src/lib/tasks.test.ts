@@ -88,7 +88,7 @@ test('filtros: vencimiento con la semántica de la API', () => {
 test('filtros: lectura y escritura en la URL', () => {
   const p = new URLSearchParams('tarea=5&responsable=x&prioridad=urgent&vence=week&mias=1&q=pan')
   const f = parseFilters(p)
-  assert.deepEqual(f, { q: 'pan', assignee: '', priority: 'urgent', due: 'week', mine: true })
+  assert.deepEqual(f, { q: 'pan', assignee: '', priority: 'urgent', due: 'week', label: '', mine: true })
   assert.equal(activeFilters(f), 4)
   assert.equal(writeFilters(p, EMPTY_FILTERS).toString(), 'tarea=5')
 })

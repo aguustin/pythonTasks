@@ -7,11 +7,14 @@ router = SimpleRouter()
 router.register('boards', views.BoardViewSet, basename='board')
 router.register('tasks', views.TaskViewSet, basename='task')
 router.register('comments', views.CommentViewSet, basename='comment')
+router.register('checklist', views.ChecklistItemViewSet, basename='checklist-item')
 
 columns_list = views.ColumnViewSet.as_view({'get': 'list', 'post': 'create'})
 columns_detail = views.ColumnViewSet.as_view({'patch': 'partial_update', 'delete': 'destroy'})
 columns_reorder = views.ColumnViewSet.as_view({'post': 'reorder'})
 members_list = views.BoardMemberViewSet.as_view({'get': 'list', 'post': 'create'})
+labels_list = views.LabelViewSet.as_view({'get': 'list', 'post': 'create'})
+labels_detail = views.LabelViewSet.as_view({'patch': 'partial_update', 'delete': 'destroy'})
 members_detail = views.BoardMemberViewSet.as_view({'patch': 'partial_update', 'delete': 'destroy'})
 
 urlpatterns = router.urls + [
@@ -22,6 +25,9 @@ urlpatterns = router.urls + [
     path('boards/<int:board_pk>/members/<int:pk>/', members_detail, name='board-member-detail'),
     path('boards/<int:board_pk>/tasks/', views.BoardTaskListView.as_view(), name='board-tasks'),
     path('boards/<int:board_pk>/activity/', views.BoardActivityView.as_view(), name='board-activity'),
+    path('boards/<int:board_pk>/labels/', labels_list, name='board-labels'),
+    path('boards/<int:board_pk>/labels/<int:pk>/', labels_detail, name='board-label-detail'),
+    path('tasks/<int:task_pk>/checklist/', views.TaskChecklistView.as_view(), name='task-checklist'),
     path('tasks/<int:task_pk>/comments/', views.TaskCommentListView.as_view(), name='task-comments'),
     path('my-tasks/', views.MyTasksView.as_view(), name='my-tasks'),
     path('organizations/<int:org_pk>/home/', views.HomeView.as_view(), name='org-home'),

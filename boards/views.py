@@ -23,15 +23,19 @@ from boards.access import (
 )
 from boards.filters import filter_tasks
 from notifications import services as notify
-from boards.models import Activity, Board, BoardMember, BoardRole, Column, Comment, Priority, ProjectFavorite, Task
+from boards.models import (
+    Activity, Board, BoardMember, BoardRole, ChecklistItem, Column, Comment, Label, Priority, ProjectFavorite, Task,
+)
 from boards.serializers import (
     AccessPreviewSerializer,
     ActivitySerializer,
     BoardDetailSerializer,
     BoardMemberSerializer,
     BoardSerializer,
+    ChecklistItemSerializer,
     ColumnSerializer,
     CommentSerializer,
+    LabelSerializer,
     TaskMoveSerializer,
     TaskSerializer,
     TaskSummarySerializer,
@@ -63,7 +67,12 @@ def tasks_queryset():
     return (
         Task.objects.select_related('column', 'board', 'created_by')
         .prefetch_related('assignees')
-        .annotate(comments_count=Count('comments', distinct=True))
+        .prefetch_related('labels')
+        .annotate(
+            comments_count=Count('comments', distinct=True),
+            checklist_total=Count('checklist', distinct=True),
+            checklist_done=Count('checklist', filter=Q(checklist__done=True), distinct=True),
+        )
     )
 
 
@@ -309,6 +318,31 @@ class ColumnViewSet(BoardScopedMixin, viewsets.ModelViewSet):
         return Response(ColumnSerializer(self.get_queryset(), many=True).data)
 
 
+# ── Etiquetas ───────────────────────────────────────────────────────────────
+
+class LabelViewSet(BoardScopedMixin, viewsets.ModelViewSet):
+    """Etiquetas del proyecto: ver (lector), crear (editor), renombrar o borrar (líder)."""
+
+    serializer_class = LabelSerializer
+    pagination_class = None
+    http_method_names = ['get', 'post', 'patch', 'delete']
+
+    def get_queryset(self):
+        return Label.objects.filter(board=self.board)
+
+    def perform_create(self, serializer):
+        self.require(BoardRole.EDITOR)
+        serializer.save(board=self.board)
+
+    def perform_update(self, serializer):
+        self.require(BoardRole.ADMIN)
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        self.require(BoardRole.ADMIN)
+        instance.delete()
+
+
 # ── Tareas ──────────────────────────────────────────────────────────────────
 
 class BoardTaskListView(BoardScopedMixin, generics.ListCreateAPIView):
@@ -482,6 +516,66 @@ class MyTasksView(generics.ListAPIView):
             .annotate(priority_rank=PRIORITY_RANK)
             .order_by(F('due_date').asc(nulls_last=True), 'priority_rank', 'id')
         )
+
+
+# ── Checklist ───────────────────────────────────────────────────────────────
+
+def _checklist_task(user, task_id, write):
+    task = Task.objects.select_related('board').filter(pk=task_id, board__in=visible_boards(user)).first()
+    if task is None:
+        raise NotFound('Tarea no encontrada.')
+    role = require_board_role(user, task.board)
+    if write:
+        require_writable(task.board)
+    return task, role
+
+
+class TaskChecklistView(generics.ListCreateAPIView):
+    """GET (lector) / POST (editor) /tasks/<task_pk>/checklist/."""
+
+    serializer_class = ChecklistItemSerializer
+    pagination_class = None
+
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        self.task, self.role = _checklist_task(request.user, kwargs['task_pk'], request.method not in SAFE_METHODS)
+
+    def get_queryset(self):
+        return ChecklistItem.objects.filter(task=self.task)
+
+    def perform_create(self, serializer):
+        if not has_role(self.role, BoardRole.EDITOR):
+            require_board_role(self.request.user, self.task.board, BoardRole.EDITOR)
+        last = ChecklistItem.objects.filter(task=self.task).order_by('-position').first()
+        serializer.save(task=self.task, position=(last.position + 1) if last else 0)
+
+
+class ChecklistItemViewSet(mixins.UpdateModelMixin, mixins.DestroyModelMixin, viewsets.GenericViewSet):
+    """
+    PATCH/DELETE /checklist/<id>/. Editores, todo. Un lector responsable de la tarea solo puede
+    tildar o destildar (como mover sus tareas asignadas).
+    """
+
+    serializer_class = ChecklistItemSerializer
+    http_method_names = ['patch', 'delete']
+
+    def get_queryset(self):
+        return ChecklistItem.objects.filter(task__board__in=visible_boards(self.request.user)).select_related('task__board')
+
+    def perform_update(self, serializer):
+        item = serializer.instance
+        _, role = _checklist_task(self.request.user, item.task_id, write=True)
+        only_done = set(serializer.validated_data) <= {'done'}
+        assigned = item.task.assignees.filter(pk=self.request.user.pk).exists()
+        if not has_role(role, BoardRole.EDITOR) and not (only_done and assigned):
+            require_board_role(self.request.user, item.task.board, BoardRole.EDITOR)
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        _, role = _checklist_task(self.request.user, instance.task_id, write=True)
+        if not has_role(role, BoardRole.EDITOR):
+            require_board_role(self.request.user, instance.task.board, BoardRole.EDITOR)
+        instance.delete()
 
 
 # ── Comentarios ─────────────────────────────────────────────────────────────

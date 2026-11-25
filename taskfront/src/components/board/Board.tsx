@@ -21,7 +21,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import {
-  createColumn, createTask, deleteColumn, deleteTask, loadTaskDetail, moveTask, reorderColumns, updateColumn, updateTask,
+  createColumn, createLabel, createTask, deleteColumn, deleteTask, loadTaskDetail, moveTask, reorderColumns, updateColumn, updateTask,
   type TaskDetailData,
 } from '@/app/(workspace)/proyectos/actions'
 import { useToast } from '@/components/ui/Toast'
@@ -30,12 +30,13 @@ import type { ActionResult } from '@/lib/forms'
 import type { BoardRole } from '@/lib/projects'
 import {
   activeFilters, canEditTasks, canMoveTask, groupByColumn, locate, matchesFilters, moveInGroups, parseFilters, writeFilters,
-  type BoardFilters, type Column, type Comment, type Person, type PersonWithRole, type Task,
+  type BoardFilters, type ChecklistItem, type Column, type Comment, type Label, type Person, type PersonWithRole, type Task,
 } from '@/lib/tasks'
 
 import { BoardToolbar } from './BoardToolbar'
 import { AddColumn, ColumnHeader, DeleteColumnDialog, MAX_COLUMNS } from './ColumnTools'
 import { QuickAdd } from './QuickAdd'
+import { nextLabelColor } from './Labels'
 import { CardBody, TaskCard } from './TaskCard'
 import { TaskPanel, type TaskChanges } from './TaskPanel'
 
@@ -59,7 +60,7 @@ const attempt = <T,>(fn: () => Promise<ActionResult<T>>): Promise<ActionResult<T
  *   avance del proyecto, columnas y menú lateral).
  * - Los filtros solo ocultan tarjetas: el orden se calcula siempre sobre la columna completa.
  */
-export function Board({ projectId, columns, tasks, role, me, archived, today, people, detail }: {
+export function Board({ projectId, columns, tasks, role, me, archived, today, people, detail, labels: serverLabels }: {
   projectId: number
   columns: Column[]
   tasks: Task[]
@@ -69,7 +70,9 @@ export function Board({ projectId, columns, tasks, role, me, archived, today, pe
   today: string
   people: PersonWithRole[]
   /** Comentarios e historial de la tarea abierta en la URL (?tarea=), si existe en este proyecto. */
-  detail: { taskId: number; comments: Comment[]; history: Activity[]; following: boolean } | null
+  detail: { taskId: number; comments: Comment[]; history: Activity[]; following: boolean; checklist: ChecklistItem[] } | null
+  /** Etiquetas del proyecto. */
+  labels: Label[]
 }) {
   const router = useRouter()
   const toast = useToast()
@@ -99,6 +102,9 @@ export function Board({ projectId, columns, tasks, role, me, archived, today, pe
     for (const t of [...server, ...created, ...Object.values(patched)]) map.set(t.id, t)
     return map
   }, [server, created, patched])
+
+  const byIdRef = useRef(byId)
+  useEffect(() => { byIdRef.current = byId })
 
   const groups = useMemo(() => applyOps(base, ops), [base, ops])
   const shown = dragGroups ?? groups
@@ -178,6 +184,31 @@ export function Board({ projectId, columns, tasks, role, me, archived, today, pe
     })
   }
   const [deleting, setDeleting] = useState<Column | null>(null)
+
+  // Etiquetas: las del servidor más las creadas desde el panel (hasta el próximo refresco).
+  const [createdLabels, setCreatedLabels] = useState<Label[]>([])
+  const labels = useMemo(() => {
+    const map = new Map<number, Label>()
+    for (const l of [...serverLabels, ...createdLabels]) map.set(l.id, l)
+    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'))
+  }, [serverLabels, createdLabels])
+  const addLabel = useCallback(async (name: string) => {
+    const res = await attempt(() => createLabel(projectId, name, nextLabelColor(labels)))
+    if (!res.ok) {
+      toast({ tone: 'error', message: `No se pudo crear la etiqueta. ${res.error}` })
+      return null
+    }
+    setCreatedLabels((all) => [...all, res.data])
+    return res.data
+  }, [projectId, labels, toast])
+
+  // Checklist: actualiza el "2/5" de la tarjeta sin recargar el tablero.
+  const setChecklistCounts = useCallback((taskId: number, total: number, done: number) => {
+    setPatched((all) => {
+      const base = all[taskId] ?? byIdRef.current.get(taskId)
+      return base ? { ...all, [taskId]: { ...base, checklist_total: total, checklist_done: done } } : all
+    })
+  }, [])
 
   // ── Filtros (en la URL, sin ir al servidor) ─────────────────────────────────
   const filters = parseFilters(searchParams)
@@ -366,7 +397,7 @@ export function Board({ projectId, columns, tasks, role, me, archived, today, pe
 
   return (
     <>
-      <BoardToolbar filters={filters} onChange={setFilters} people={people} visible={visibleCount} total={total} />
+      <BoardToolbar filters={filters} onChange={setFilters} people={people} labels={labels} visible={visibleCount} total={total} />
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
@@ -434,7 +465,8 @@ export function Board({ projectId, columns, tasks, role, me, archived, today, pe
       </DndContext>
 
       {openId !== null && (
-        <TaskPanel projectId={projectId} task={openTaskData} missing={!openTaskData && (localOpen === undefined || detailMissing === openId)}
+        <TaskPanel projectId={projectId} task={openTaskData} labels={labels} onCreateLabel={addLabel}
+          onChecklistCounts={(total, done) => setChecklistCounts(openId, total, done)} missing={!openTaskData && (localOpen === undefined || detailMissing === openId)}
           detail={openDetail} columns={columns} currentColumn={openColumn} people={people} me={me} role={role}
           canEdit={canAdd} canMove={openTaskData ? movable(openTaskData) : false} archived={archived} today={today}
           onClose={closeTask}

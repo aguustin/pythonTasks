@@ -4,7 +4,7 @@ from django.db.models import Max
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
-from boards.models import DEFAULT_COLUMNS, Activity, Board, BoardMember, BoardRole, Column, Task
+from boards.models import DEFAULT_COLUMNS, Activity, Board, BoardMember, BoardRole, ChecklistItem, Column, Label, Task
 
 
 def log(board, actor, verb, task=None, **data):
@@ -258,6 +258,8 @@ def spawn_next_occurrence(task, actor):
     )
     nxt.assignees.set(task.assignees.all())
     nxt.followers.set(task.followers.all())
+    nxt.labels.set(task.labels.all())
+    copy_checklist(task, nxt)
     task.next_occurrence = nxt
     task.save(update_fields=['next_occurrence'])
     log(task.board, actor, Activity.Verb.TASK_CREATED, task=nxt, title=nxt.title, repeated=True)
@@ -286,6 +288,7 @@ def duplicate_board(source, user, *, title, include_tasks=False, include_members
         columns[col.pk] = Column.objects.create(
             board=board, name=col.name, color=col.color, is_done=col.is_done, position=col.position,
         )
+    labels = {lb.pk: Label.objects.create(board=board, name=lb.name, color=lb.color) for lb in source.labels.all()}
     BoardMember.objects.create(board=board, user=user, role=BoardRole.ADMIN)
     if include_members and board_role(user, source) == BoardRole.ADMIN:
         for m in source.members.exclude(user=user):
@@ -298,5 +301,14 @@ def duplicate_board(source, user, *, title, include_tasks=False, include_members
                 due_date=t.due_date if keep_dates else None,
             )
             copy.assignees.set([u for u in t.assignees.all() if board_role(u, board) is not None])
+            copy.labels.set([labels[lb.pk] for lb in t.labels.all()])
+            copy_checklist(t, copy)
     log(board, user, Activity.Verb.BOARD_CREATED, title=board.title, duplicated_from=source.title)
     return board
+
+
+def copy_checklist(source, target):
+    """Copia los ítems sin tildar: una repetición o una plantilla empiezan de cero."""
+    ChecklistItem.objects.bulk_create(
+        ChecklistItem(task=target, text=i.text, done=False, position=i.position) for i in source.checklist.all()
+    )

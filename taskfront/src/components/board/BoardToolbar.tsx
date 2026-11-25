@@ -4,7 +4,7 @@ import { ChevronDown, Search, UserRound, X } from 'lucide-react'
 
 import {
   activeFilters, DUE_FILTER_LABELS, EMPTY_FILTERS, PRIORITY_LABELS,
-  type BoardFilters, type DueFilter, type PersonWithRole, type Priority,
+  type BoardFilters, type DueFilter, type Label, type PersonWithRole, type Priority,
 } from '@/lib/tasks'
 
 const select = 'h-8 appearance-none rounded-[var(--radius-sm)] border bg-surface pl-2.5 pr-7 text-[13px] outline-none hover:border-border-strong focus-visible:border-focus'
@@ -23,10 +23,11 @@ function FilterSelect({ label, value, onChange, children }: { label: string; val
 }
 
 /** Filtros del tablero (S4). Viven en la URL para poder compartir la vista filtrada. */
-export function BoardToolbar({ filters, onChange, people, visible, total }: {
+export function BoardToolbar({ filters, onChange, people, labels, visible, total }: {
   filters: BoardFilters
   onChange: (f: BoardFilters) => void
   people: PersonWithRole[]
+  labels: Label[]
   visible: number
   total: number
 }) {
@@ -59,6 +60,12 @@ export function BoardToolbar({ filters, onChange, people, visible, total }: {
         <option value="">Prioridad: todas</option>
         {(['urgent', 'high', 'medium', 'low'] as Priority[]).map((p) => <option key={p} value={p}>{PRIORITY_LABELS[p]}</option>)}
       </FilterSelect>
+      {labels.length > 0 && (
+        <FilterSelect label="Etiqueta" value={filters.label} onChange={(v) => set('label', v)}>
+          <option value="">Etiqueta: todas</option>
+          {labels.map((l) => <option key={l.id} value={String(l.id)}>{l.name}</option>)}
+        </FilterSelect>
+      )}
       <FilterSelect label="Vencimiento" value={filters.due} onChange={(v) => set('due', v as DueFilter | '')}>
         <option value="">Vencimiento: cualquiera</option>
         {(Object.keys(DUE_FILTER_LABELS) as DueFilter[]).map((d) => <option key={d} value={d}>{DUE_FILTER_LABELS[d]}</option>)}

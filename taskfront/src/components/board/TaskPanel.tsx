@@ -11,13 +11,15 @@ import { useToast } from '@/components/ui/Toast'
 import { activityText, stamp, type Activity } from '@/lib/activity'
 import type { ActionResult } from '@/lib/forms'
 import type { BoardRole } from '@/lib/projects'
-import { dueLabel, dueState, PRIORITY_LABELS, REPEAT_LABELS, type Column, type Repeat, type Comment, type Person, type PersonWithRole, type Priority, type Task } from '@/lib/tasks'
+import { dueLabel, dueState, PRIORITY_LABELS, REPEAT_LABELS, type Column, type Repeat, type ChecklistItem, type Comment, type Label, type Person, type PersonWithRole, type Priority, type Task } from '@/lib/tasks'
 
 import { AssigneePicker } from './AssigneePicker'
+import { Checklist } from './Checklist'
+import { LabelPicker } from './Labels'
 import { Comments } from './Comments'
 import { PriorityTag } from './TaskCard'
 
-export type TaskChanges = Partial<{ title: string; description: string; priority: Priority; due_date: string | null; assignee_ids: number[]; repeat: Repeat }>
+export type TaskChanges = Partial<{ title: string; description: string; priority: Priority; due_date: string | null; assignee_ids: number[]; repeat: Repeat; label_ids: number[] }>
 
 type Status = 'idle' | 'saving' | 'saved' | 'error'
 
@@ -29,12 +31,16 @@ const control = 'h-9 w-full rounded-[var(--radius-field)] border border-input-bo
  * propia (?tarea=id). Cada campo se guarda solo, al salir de él o al elegir un valor; si la API
  * lo rechaza, vuelve al valor anterior y se avisa. Esc cierra.
  */
-export function TaskPanel({ projectId, task, missing, detail, columns, currentColumn, people, me, role, canEdit, canMove, archived, today, onClose, onSave, onMove, onDelete }: {
+export function TaskPanel({ projectId, task, missing, detail, labels, onCreateLabel, onChecklistCounts, columns, currentColumn, people, me, role, canEdit, canMove, archived, today, onClose, onSave, onMove, onDelete }: {
   projectId: number
   task: Task | null
   /** La tarea no existe o no es de este proyecto. */
   missing: boolean
-  detail: { comments: Comment[]; history: Activity[]; following: boolean } | null
+  detail: { comments: Comment[]; history: Activity[]; following: boolean; checklist: ChecklistItem[] } | null
+  /** Etiquetas del proyecto. */
+  labels: Label[]
+  onCreateLabel: (name: string) => Promise<Label | null>
+  onChecklistCounts: (total: number, done: number) => void
   columns: Column[]
   currentColumn: number | null
   people: PersonWithRole[]
@@ -218,6 +224,14 @@ export function TaskPanel({ projectId, task, missing, detail, columns, currentCo
                   })} />
               </dd>
 
+              <dt className="text-muted">Etiquetas</dt>
+              <dd className="min-w-0">
+                <LabelPicker value={shown.labels ?? []} labels={labels} editable={canEdit} onCreate={onCreateLabel}
+                  onChange={(ids) => void save({ label_ids: ids }, {
+                    labels: ids.map((id) => labels.find((l) => l.id === id)).filter((l): l is Label => Boolean(l)),
+                  })} />
+              </dd>
+
               <dt className="text-muted"><label htmlFor="task-priority">Prioridad</label></dt>
               <dd>
                 {canEdit ? (
@@ -295,6 +309,9 @@ export function TaskPanel({ projectId, task, missing, detail, columns, currentCo
               )}
             </div>
 
+            <Checklist key={`cl-${shown.id}`} taskId={shown.id} initial={detail?.checklist ?? EMPTY_CHECKLIST} loading={!detail}
+              canEdit={canEdit} canToggle={canMove} onCounts={onChecklistCounts} />
+
             <hr className="border-border" />
 
             <Comments key={shown.id} taskId={shown.id} initial={detail?.comments ?? EMPTY} loading={!detail}
@@ -333,3 +350,4 @@ export function TaskPanel({ projectId, task, missing, detail, columns, currentCo
 }
 
 const EMPTY: Comment[] = []
+const EMPTY_CHECKLIST: ChecklistItem[] = []

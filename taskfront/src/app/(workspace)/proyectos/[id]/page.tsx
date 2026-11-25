@@ -4,7 +4,7 @@ import { Board } from '@/components/board/Board'
 import { PageBody } from '@/components/ui/PageHeader'
 import { todayISO } from '@/lib/projects'
 import { requireUser } from '@/lib/server/dal'
-import { getPeople, getProject, getTaskDetail, getTasks } from '@/lib/server/projects'
+import { getLabels, getPeople, getProject, getTaskDetail, getTasks } from '@/lib/server/projects'
 
 export async function generateMetadata({ params }: PageProps<'/proyectos/[id]'>): Promise<Metadata> {
   const project = await getProject(Number((await params).id))
@@ -20,11 +20,12 @@ export default async function ProjectBoardPage({ params, searchParams }: PagePro
   const project = await getProject(id) // 404 si no existe o no hay acceso
   const tarea = (await searchParams).tarea
   const taskId = Number(Array.isArray(tarea) ? tarea[0] : tarea)
-  const [tasks, people, user, detail] = await Promise.all([
+  const [tasks, people, user, detail, labels] = await Promise.all([
     getTasks(id),
     getPeople(id),
     requireUser(),
     taskId ? getTaskDetail(id, taskId) : Promise.resolve(null),
+    getLabels(id),
   ])
   const columns = [...(project.columns ?? [])].sort((a, b) => a.position - b.position)
   return (
@@ -38,7 +39,8 @@ export default async function ProjectBoardPage({ params, searchParams }: PagePro
         archived={Boolean(project.archived_at)}
         today={todayISO()}
         people={people}
-        detail={detail && { taskId: detail.task.id, comments: detail.comments, history: detail.history, following: detail.following }}
+        labels={labels}
+        detail={detail && { taskId: detail.task.id, comments: detail.comments, history: detail.history, following: detail.following, checklist: detail.checklist }}
       />
     </PageBody>
   )

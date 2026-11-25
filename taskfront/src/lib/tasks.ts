@@ -20,12 +20,32 @@ export type Task = {
   completed_at: string | null
   comments_count: number
   repeat?: Repeat
+  labels?: Label[]
+  checklist_total?: number
+  checklist_done?: number
   created_by?: Person | null
   created_at?: string
   updated_at?: string
 }
 
 export type PersonWithRole = Person & { role: BoardRole }
+
+export type LabelColor = 'gray' | 'red' | 'orange' | 'yellow' | 'green' | 'teal' | 'blue' | 'purple'
+export type Label = { id: number; name: string; color: LabelColor }
+export type ChecklistItem = { id: number; task: number; text: string; done: boolean; position: number }
+
+/** Colores de etiqueta: texto 4,5:1 sobre su fondo en ambos temas. */
+export const LABEL_COLORS: Record<LabelColor, { name: string; chip: string; dot: string }> = {
+  gray: { name: 'Gris', chip: 'bg-slate-100 text-slate-700 dark:bg-slate-400/15 dark:text-slate-300', dot: 'bg-slate-400' },
+  red: { name: 'Rojo', chip: 'bg-red-100 text-red-800 dark:bg-red-400/15 dark:text-red-300', dot: 'bg-red-500' },
+  orange: { name: 'Naranja', chip: 'bg-orange-100 text-orange-800 dark:bg-orange-400/15 dark:text-orange-300', dot: 'bg-orange-500' },
+  yellow: { name: 'Amarillo', chip: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-400/15 dark:text-yellow-200', dot: 'bg-yellow-400' },
+  green: { name: 'Verde', chip: 'bg-green-100 text-green-800 dark:bg-green-400/15 dark:text-green-300', dot: 'bg-green-500' },
+  teal: { name: 'Turquesa', chip: 'bg-teal-100 text-teal-800 dark:bg-teal-400/15 dark:text-teal-300', dot: 'bg-teal-500' },
+  blue: { name: 'Azul', chip: 'bg-blue-100 text-blue-800 dark:bg-blue-400/15 dark:text-blue-300', dot: 'bg-blue-500' },
+  purple: { name: 'Violeta', chip: 'bg-purple-100 text-purple-800 dark:bg-purple-400/15 dark:text-purple-300', dot: 'bg-purple-500' },
+}
+export const LABEL_COLOR_KEYS = Object.keys(LABEL_COLORS) as LabelColor[]
 
 export type Repeat = 'none' | 'daily' | 'weekdays' | 'weekly' | 'monthly'
 export const REPEAT_LABELS: Record<Repeat, string> = {
@@ -129,10 +149,12 @@ export type BoardFilters = {
   assignee: string
   priority: Priority | ''
   due: DueFilter | ''
+  /** id de etiqueta o '' (todas). */
+  label: string
   mine: boolean
 }
 
-export const EMPTY_FILTERS: BoardFilters = { q: '', assignee: '', priority: '', due: '', mine: false }
+export const EMPTY_FILTERS: BoardFilters = { q: '', assignee: '', priority: '', due: '', label: '', mine: false }
 
 export const DUE_FILTER_LABELS: Record<DueFilter, string> = {
   overdue: 'Vencidas',
@@ -149,11 +171,13 @@ export function parseFilters(params: { get(name: string): string | null }): Boar
   const assignee = params.get('responsable') ?? ''
   const priority = params.get('prioridad') ?? ''
   const due = params.get('vence') ?? ''
+  const label = params.get('etiqueta') ?? ''
   return {
     q: (params.get('q') ?? '').slice(0, 100),
     assignee: assignee === 'none' || /^\d+$/.test(assignee) ? assignee : '',
     priority: PRIORITIES.includes(priority as Priority) ? (priority as Priority) : '',
     due: DUES.includes(due as DueFilter) ? (due as DueFilter) : '',
+    label: /^\d+$/.test(label) ? label : '',
     mine: params.get('mias') === '1',
   }
 }
@@ -166,12 +190,13 @@ export function writeFilters(current: URLSearchParams, f: BoardFilters): URLSear
   set('responsable', f.assignee)
   set('prioridad', f.priority)
   set('vence', f.due)
+  set('etiqueta', f.label)
   set('mias', f.mine ? '1' : '')
   return next
 }
 
 export const activeFilters = (f: BoardFilters) =>
-  [f.q.trim(), f.assignee, f.priority, f.due, f.mine ? '1' : ''].filter(Boolean).length
+  [f.q.trim(), f.assignee, f.priority, f.due, f.label, f.mine ? '1' : ''].filter(Boolean).length
 
 const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 
@@ -184,6 +209,7 @@ export function matchesFilters(task: Task, f: BoardFilters, ctx: { userId: numbe
   if (f.assignee === 'none' && task.assignees.length > 0) return false
   if (f.assignee && f.assignee !== 'none' && !task.assignees.some((a) => String(a.id) === f.assignee)) return false
   if (f.priority && task.priority !== f.priority) return false
+  if (f.label && !(task.labels ?? []).some((l) => String(l.id) === f.label)) return false
   if (f.due) {
     const due = task.due_date
     if (f.due === 'none' && due) return false

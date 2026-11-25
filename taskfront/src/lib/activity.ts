@@ -25,6 +25,8 @@ const FIELD_LABELS: Record<string, string> = {
   priority: 'la prioridad',
   due_date: 'el vencimiento',
   assignees: 'los responsables',
+  labels: 'las etiquetas',
+  repeat: 'la repetición',
   color: 'el color',
   status: 'el estado',
   start_date: 'el inicio',

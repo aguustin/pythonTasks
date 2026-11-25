@@ -4,7 +4,7 @@ from rest_framework import serializers
 from accounts.models import User
 from accounts.serializers import UserPublicSerializer
 from boards.access import board_role
-from boards.models import Activity, Board, BoardMember, BoardRole, Column, Comment, Task
+from boards.models import Activity, Board, BoardMember, BoardRole, ChecklistItem, Column, Comment, Label, Task
 from workspaces.models import Membership
 
 
@@ -111,6 +111,36 @@ class BoardMemberSerializer(serializers.ModelSerializer):
         return attrs
 
 
+class LabelSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Label
+        fields = ['id', 'name', 'color']
+
+    def validate_name(self, value):
+        value = ' '.join(value.split())
+        if not value:
+            raise serializers.ValidationError('Poné un nombre para la etiqueta.')
+        clash = Label.objects.filter(board=self.context['board'], name__iexact=value)
+        if self.instance:
+            clash = clash.exclude(pk=self.instance.pk)
+        if clash.exists():
+            raise serializers.ValidationError('Ya hay una etiqueta con ese nombre en el proyecto.')
+        return value
+
+
+class ChecklistItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ChecklistItem
+        fields = ['id', 'task', 'text', 'done', 'position']
+        read_only_fields = ['id', 'task', 'position']
+
+    def validate_text(self, value):
+        value = ' '.join(value.split())
+        if not value:
+            raise serializers.ValidationError('Escribí el ítem.')
+        return value
+
+
 class TaskSerializer(serializers.ModelSerializer):
     assignees = UserPublicSerializer(many=True, read_only=True)
     assignee_ids = serializers.PrimaryKeyRelatedField(
@@ -119,6 +149,12 @@ class TaskSerializer(serializers.ModelSerializer):
     column = serializers.PrimaryKeyRelatedField(queryset=Column.objects.all(), required=False)
     created_by = UserPublicSerializer(read_only=True)
     comments_count = serializers.IntegerField(read_only=True, default=0)
+    checklist_total = serializers.IntegerField(read_only=True, default=0)
+    checklist_done = serializers.IntegerField(read_only=True, default=0)
+    labels = LabelSerializer(many=True, read_only=True)
+    label_ids = serializers.PrimaryKeyRelatedField(
+        queryset=Label.objects.all(), many=True, write_only=True, required=False, source='labels'
+    )
 
     class Meta:
         model = Task
@@ -126,6 +162,7 @@ class TaskSerializer(serializers.ModelSerializer):
             'id', 'board', 'column', 'title', 'description', 'priority', 'due_date',
             'assignees', 'assignee_ids', 'position', 'created_by', 'repeat',
             'created_at', 'updated_at', 'completed_at', 'comments_count',
+            'checklist_total', 'checklist_done', 'labels', 'label_ids',
         ]
         read_only_fields = ['id', 'board', 'position', 'created_by', 'created_at', 'updated_at', 'completed_at']
 
@@ -141,6 +178,12 @@ class TaskSerializer(serializers.ModelSerializer):
         if value.board_id != self.context['board'].pk:
             raise serializers.ValidationError('La columna no pertenece a este tablero.')
         return value
+
+    def validate_label_ids(self, labels):
+        board = self.context['board']
+        if any(label.board_id != board.pk for label in labels):
+            raise serializers.ValidationError('La etiqueta no pertenece a este proyecto.')
+        return list({label.pk: label for label in labels}.values())
 
     def validate_assignee_ids(self, users):
         board = self.context['board']

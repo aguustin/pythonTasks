@@ -122,6 +122,10 @@ El link de invitación es `{FRONTEND_URL}/invitacion/{token}`.
 | PATCH | `boards/{id}/columns/{col_id}/` | admin · `{name, color, is_done}` |
 | DELETE | `boards/{id}/columns/{col_id}/?move_to={col_id}` | admin (`move_to` obligatorio si tiene tareas) |
 | POST | `boards/{id}/columns/reorder/` | admin · `{order: [ids]}` |
+| GET/POST | `boards/{id}/labels/` | lector / editor · `{name, color}` (`gray`/`red`/`orange`/`yellow`/`green`/`teal`/`blue`/`purple`), nombre único por proyecto |
+| PATCH/DELETE | `boards/{id}/labels/{label_id}/` | admin |
+| GET/POST | `tasks/{id}/checklist/` | lector / editor · `{text}` |
+| PATCH/DELETE | `checklist/{id}/` | editor (un lector responsable puede cambiar solo `done`) / editor |
 | GET/POST | `boards/{id}/tasks/` | lector / editor |
 | GET | `boards/{id}/activity/[?task={id}]` | lector (paginado) |
 | GET/PATCH/DELETE | `tasks/{id}/` | lector / editor / editor |
@@ -142,7 +146,8 @@ proyecto, el proyecto pasa a privado, baja de rol en la organización), deja de 
 queda registrado en la actividad (`assignees_removed`). Las vistas previas sirven para avisar antes de confirmar.
 
 **Tarea:** `title`, `description`, `priority` (`low`/`medium`/`high`/`urgent`), `due_date`,
-`column`, `assignee_ids` (escritura) / `assignees` (lectura), `repeat` (`none`/`daily`/`weekdays`/`weekly`/`monthly`).
+`column`, `assignee_ids` (escritura) / `assignees` (lectura), `label_ids` / `labels` (del mismo proyecto),
+`checklist_total` y `checklist_done` (lectura), `repeat` (`none`/`daily`/`weekdays`/`weekly`/`monthly`).
 Para cambiar de columna se usa `move/`.
 
 **Recurrencia:** al pasar a una columna de terminadas, una tarea que se repite crea la próxima (misma información y

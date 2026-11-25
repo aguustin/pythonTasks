@@ -126,6 +126,31 @@ class Priority(models.TextChoices):
     URGENT = 'urgent', 'Urgente'
 
 
+class Label(models.Model):
+    """Etiqueta del proyecto ("Proveedor", "Cliente X"…). Color de una paleta fija."""
+
+    class Color(models.TextChoices):
+        GRAY = 'gray', 'Gris'
+        RED = 'red', 'Rojo'
+        ORANGE = 'orange', 'Naranja'
+        YELLOW = 'yellow', 'Amarillo'
+        GREEN = 'green', 'Verde'
+        TEAL = 'teal', 'Turquesa'
+        BLUE = 'blue', 'Azul'
+        PURPLE = 'purple', 'Violeta'
+
+    board = models.ForeignKey(Board, on_delete=models.CASCADE, related_name='labels')
+    name = models.CharField('nombre', max_length=30)
+    color = models.CharField(max_length=10, choices=Color.choices, default=Color.GRAY)
+
+    class Meta:
+        ordering = ['name', 'id']
+        constraints = [models.UniqueConstraint(fields=['board', 'name'], name='label_unique_name_per_board')]
+
+    def __str__(self):
+        return self.name
+
+
 class Repeat(models.TextChoices):
     NONE = 'none', 'No se repite'
     DAILY = 'daily', 'Todos los días'
@@ -146,6 +171,7 @@ class Task(models.Model):
     assignees = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='assigned_tasks', blank=True)
     # Personas que siguen la tarea sin ser responsables: reciben sus novedades (comentarios, terminada).
     followers = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='followed_tasks', blank=True)
+    labels = models.ManyToManyField(Label, related_name='tasks', blank=True)
     position = models.PositiveIntegerField(default=0)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='+'
@@ -168,6 +194,19 @@ class Task(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class ChecklistItem(models.Model):
+    """Ítem simple de una tarea (cubre la mayoría de las "subtareas" sin jerarquías)."""
+
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='checklist')
+    text = models.CharField('texto', max_length=200)
+    done = models.BooleanField(default=False)
+    position = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['position', 'id']
 
 
 class Comment(models.Model):
