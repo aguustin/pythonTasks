@@ -511,3 +511,32 @@ export async function deleteChecklistItem(itemId: number): Promise<ActionResult>
   if (!res.ok && res.status !== 404) return failure(res)
   return { ok: true, data: undefined }
 }
+
+// ── Equipos con acceso al proyecto (líder) ──────────────────────────────────
+
+export type ProjectTeam = { id: number; role: BoardRole; team: { id: number; name: string; members: { id: number; full_name: string; email: string }[] } }
+
+export async function addProjectTeam(boardId: number, teamId: number, role: BoardRole): Promise<ActionResult> {
+  if (!validId(boardId) || !validId(teamId) || !ROLES.includes(role)) return { ok: false, error: 'Datos inválidos.' }
+  const res = await apiAction(`/boards/${boardId}/teams/`, 'POST', { team_id: teamId, role })
+  if (!res.ok) return failure(res)
+  refresh(boardId)
+  return { ok: true, data: undefined }
+}
+
+export async function changeProjectTeamRole(boardId: number, accessId: number, role: BoardRole): Promise<ActionResult> {
+  if (!validId(boardId) || !validId(accessId) || !ROLES.includes(role)) return { ok: false, error: 'Datos inválidos.' }
+  const res = await apiAction(`/boards/${boardId}/teams/${accessId}/`, 'PATCH', { role })
+  if (!res.ok) return failure(res)
+  refresh(boardId)
+  return { ok: true, data: undefined }
+}
+
+/** Quitar el acceso del equipo: quienes solo entraban por él lo pierden (y sus asignaciones, D18). */
+export async function removeProjectTeam(boardId: number, accessId: number): Promise<ActionResult> {
+  if (!validId(boardId) || !validId(accessId)) return { ok: false, error: 'Datos inválidos.' }
+  const res = await apiAction(`/boards/${boardId}/teams/${accessId}/`, 'DELETE')
+  if (!res.ok && res.status !== 404) return failure(res)
+  refresh(boardId)
+  return { ok: true, data: undefined }
+}

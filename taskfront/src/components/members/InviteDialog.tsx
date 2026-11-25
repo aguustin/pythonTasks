@@ -66,7 +66,7 @@ export function InviteButton({ myRole, organization }: { myRole: OrgRole; organi
           <form action={submit} className="space-y-4" noValidate>
             {error?.message && <Alert tone="error">{error.message}</Alert>}
             <Select label="Rol" name="role" defaultValue="member"
-              hint="Los administradores pueden invitar y gestionar integrantes; los integrantes trabajan en los proyectos.">
+              hint="Administrador: invita y gestiona. Integrante: trabaja en los proyectos. Invitado: persona externa que solo ve los proyectos que le compartas.">
               {roles.map((role) => <option key={role} value={role}>{ROLE_LABELS[role]}</option>)}
             </Select>
             <Field label="Email (opcional)" name="email" type="email" autoComplete="off" error={error?.email}

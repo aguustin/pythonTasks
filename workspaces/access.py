@@ -25,6 +25,24 @@ def require_manager(membership):
         raise PermissionDenied('Solo un propietario o un administrador de la organización puede hacer esto.')
 
 
+def can_create_projects(membership) -> bool:
+    """D4: los invitados nunca; los integrantes comunes solo si la organización lo permite."""
+    if membership.is_guest:
+        return False
+    if membership.is_manager:
+        return True
+    return membership.organization.project_creation == membership.organization.ProjectCreation.MEMBERS
+
+
+def require_can_create_projects(user, organization_id):
+    membership = require_membership(user, organization_id)
+    if not can_create_projects(membership):
+        if membership.is_guest:
+            raise PermissionDenied('Las personas invitadas no pueden crear proyectos.')
+        raise PermissionDenied('En esta organización solo los administradores y propietarios crean proyectos.')
+    return membership
+
+
 def require_owner(membership):
     if membership.role != OrgRole.OWNER:
         raise PermissionDenied('Solo un propietario de la organización puede hacer esto.')
@@ -40,5 +58,5 @@ def can_manage_member(actor: Membership, target: Membership) -> bool:
     if actor.role == OrgRole.OWNER:
         return True
     if actor.role == OrgRole.ADMIN:
-        return target.role == OrgRole.MEMBER
+        return target.role in (OrgRole.MEMBER, OrgRole.GUEST)
     return False

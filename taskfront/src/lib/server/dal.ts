@@ -70,7 +70,15 @@ export async function apiAction<T>(path: string, method: Method = 'POST', body?:
 
 // ── Organizaciones ───────────────────────────────────────────────────────────
 
-export type Organization = { id: number; name: string; my_role: OrgRole; members_count: number; created_at: string }
+export type Organization = {
+  id: number
+  name: string
+  my_role: OrgRole
+  members_count: number
+  created_at: string
+  /** D4: quién crea proyectos ('members' = cualquiera salvo invitados). */
+  project_creation: 'members' | 'managers'
+}
 
 export const getOrganizations = cache(async (): Promise<Organization[]> => {
   const res = await apiRead<Organization[]>('/organizations/')

@@ -82,6 +82,9 @@ class MembershipViewSet(
         self.my_membership = require_membership(request.user, kwargs['org_pk'])
 
     def get_queryset(self):
+        # Un invitado no ve la lista de integrantes (solo a la gente de sus proyectos, vía cada proyecto).
+        if self.my_membership.is_guest:
+            raise PermissionDenied('Las personas invitadas no ven la lista de integrantes.')
         return Membership.objects.filter(organization_id=self.kwargs['org_pk']).select_related('user')
 
     def _check_can_manage(self, target):
@@ -95,10 +98,10 @@ class MembershipViewSet(
         new_role = serializer.validated_data.get('role', target.role)
         if new_role == OrgRole.OWNER and self.my_membership.role != OrgRole.OWNER:
             raise PermissionDenied('Solo un propietario puede nombrar a otro propietario.')
-        was_manager = target.is_manager
+        old_role = target.role
         change_role(target, new_role)
-        if was_manager and not target.is_manager:
-            # Pierde el acceso total: deja de ser responsable donde ya no tiene acceso (D18).
+        if old_role != new_role:
+            # Si perdió acceso a algún proyecto (p. ej. pasó a invitado), deja de ser responsable ahí (D18).
             from boards.services import prune_org_assignees
             prune_org_assignees(target.organization_id, self.request.user)
 

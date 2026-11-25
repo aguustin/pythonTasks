@@ -42,3 +42,17 @@ export async function getPendingInvitations(orgId: number): Promise<Invitation[]
   if (!res.ok) throw new Error('No se pudieron cargar las invitaciones.')
   return res.data.results
 }
+
+export type Team = {
+  id: number
+  name: string
+  members: { id: number; email: string; full_name: string }[]
+  projects: { id: number; title: string; role: 'admin' | 'editor' | 'viewer' }[]
+}
+
+/** Equipos de la organización (los invitados no los ven: la API responde 403). */
+export async function getTeams(orgId: number): Promise<Team[]> {
+  const res = await apiRead<Team[]>(`/organizations/${orgId}/teams/`)
+  if (!res.ok) throw new Error('No se pudieron cargar los equipos.')
+  return res.data
+}

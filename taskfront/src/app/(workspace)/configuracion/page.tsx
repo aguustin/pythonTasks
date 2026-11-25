@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 
 import { RoleBadge } from '@/components/ui/Badges'
 import { Card, PageBar, PageBody } from '@/components/ui/PageHeader'
-import { DeleteOrganization, RenameOrganizationForm } from '@/components/workspace/OrganizationSettings'
+import { DeleteOrganization, PROJECT_CREATION_LABELS, ProjectCreationSetting, RenameOrganizationForm } from '@/components/workspace/OrganizationSettings'
 import { formatDate, plural } from '@/lib/format'
 import { isManager } from '@/lib/permissions'
 import { requireActiveOrganization } from '@/lib/server/organization'
@@ -36,6 +36,18 @@ export default async function SettingsPage() {
             <dt className="text-subtle">Creada</dt>
             <dd className="font-mono text-xs">{formatDate(org.created_at)}</dd>
           </dl>
+        </Card>
+
+        <Card label="Proyectos" title="Creación de proyectos"
+          description={manager ? 'Quien crea un proyecto queda como su líder.' : 'Solo propietarios y administradores pueden cambiarlo.'}>
+          {manager ? (
+            <ProjectCreationSetting value={org.project_creation} />
+          ) : (
+            <dl className="grid gap-3 text-[13px] sm:grid-cols-[9rem_1fr]">
+              <dt className="text-subtle">Pueden crear</dt>
+              <dd className="font-medium">{PROJECT_CREATION_LABELS[org.project_creation]}</dd>
+            </dl>
+          )}
         </Card>
 
         {org.my_role === 'owner' && (

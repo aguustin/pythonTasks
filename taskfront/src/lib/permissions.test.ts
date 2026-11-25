@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { assignableRoles, canManageMember, canUndoRoleChange, invitableRoles } from './permissions.ts'
+import { assignableRoles, canCreateProjects, canManageMember, canUndoRoleChange, invitableRoles } from './permissions.ts'
 
 test('quién gestiona a quién (igual que la API)', () => {
   assert.equal(canManageMember('owner', 'owner', false), true)
@@ -13,10 +13,15 @@ test('quién gestiona a quién (igual que la API)', () => {
 })
 
 test('roles asignables e invitables', () => {
-  assert.deepEqual(assignableRoles('owner'), ['owner', 'admin', 'member'])
-  assert.deepEqual(assignableRoles('admin'), ['admin', 'member'])
+  assert.deepEqual(assignableRoles('owner'), ['owner', 'admin', 'member', 'guest'])
+  assert.deepEqual(assignableRoles('admin'), ['admin', 'member', 'guest'])
   assert.deepEqual(assignableRoles('member'), [])
-  assert.deepEqual(invitableRoles('admin'), ['member', 'admin'])
+  assert.deepEqual(invitableRoles('admin'), ['member', 'admin', 'guest'])
+  assert.equal(canManageMember('admin', 'guest', false), true)
+  assert.equal(canCreateProjects({ my_role: 'member', project_creation: 'members' }), true)
+  assert.equal(canCreateProjects({ my_role: 'member', project_creation: 'managers' }), false)
+  assert.equal(canCreateProjects({ my_role: 'admin', project_creation: 'managers' }), true)
+  assert.equal(canCreateProjects({ my_role: 'guest', project_creation: 'members' }), false)
   assert.deepEqual(invitableRoles('member'), [])
 })
 

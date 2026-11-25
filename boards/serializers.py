@@ -4,8 +4,8 @@ from rest_framework import serializers
 from accounts.models import User
 from accounts.serializers import UserPublicSerializer
 from boards.access import board_role
-from boards.models import Activity, Board, BoardMember, BoardRole, ChecklistItem, Column, Comment, Label, Task
-from workspaces.models import Membership
+from boards.models import Activity, Board, BoardMember, BoardRole, BoardTeam, ChecklistItem, Column, Comment, Label, Task
+from workspaces.models import Membership, Team
 
 
 class ColumnSerializer(serializers.ModelSerializer):
@@ -108,6 +108,36 @@ class BoardMemberSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({'user_id': 'El usuario ya es miembro del tablero.'})
         elif user is not None and user.pk != self.instance.user_id:
             raise serializers.ValidationError({'user_id': 'No se puede cambiar el usuario.'})
+        return attrs
+
+
+class BoardTeamSerializer(serializers.ModelSerializer):
+    team_id = serializers.PrimaryKeyRelatedField(source='team', queryset=Team.objects.all(), write_only=True, required=False)
+    team = serializers.SerializerMethodField()
+
+    class Meta:
+        model = BoardTeam
+        fields = ['id', 'team', 'team_id', 'role', 'added_at']
+        read_only_fields = ['id', 'added_at']
+
+    def get_team(self, access):
+        return {
+            'id': access.team_id, 'name': access.team.name,
+            'members': UserPublicSerializer([m.user for m in access.team.members.all()], many=True).data,
+        }
+
+    def validate(self, attrs):
+        board = self.context['board']
+        team = attrs.get('team')
+        if self.instance is None:
+            if team is None:
+                raise serializers.ValidationError({'team_id': 'Elegí un equipo.'})
+            if team.organization_id != board.organization_id:
+                raise serializers.ValidationError({'team_id': 'El equipo no es de esta organización.'})
+            if BoardTeam.objects.filter(board=board, team=team).exists():
+                raise serializers.ValidationError({'team_id': 'Ese equipo ya tiene acceso.'})
+        elif team is not None and team.pk != self.instance.team_id:
+            raise serializers.ValidationError({'team_id': 'No se puede cambiar el equipo.'})
         return attrs
 
 

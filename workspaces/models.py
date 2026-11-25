@@ -9,7 +9,15 @@ from django.utils import timezone
 class Organization(models.Model):
     """Empresa, local o equipo. Un usuario puede pertenecer a varias."""
 
+    class ProjectCreation(models.TextChoices):
+        # D4: quién puede crear (y duplicar) proyectos. Los invitados nunca pueden.
+        MEMBERS = 'members', 'Integrantes, administradores y propietarios'
+        MANAGERS = 'managers', 'Solo administradores y propietarios'
+
     name = models.CharField('nombre', max_length=120)
+    project_creation = models.CharField(
+        'quién crea proyectos', max_length=10, choices=ProjectCreation.choices, default=ProjectCreation.MEMBERS,
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='+'
     )
@@ -28,6 +36,9 @@ class OrgRole(models.TextChoices):
     OWNER = 'owner', 'Propietario'
     ADMIN = 'admin', 'Administrador'
     MEMBER = 'member', 'Integrante'
+    # Persona externa (cliente, proveedor): solo ve los proyectos a los que la agregan
+    # explícitamente (directo o por un equipo), nunca los abiertos a toda la organización.
+    GUEST = 'guest', 'Invitado'
 
 
 ORG_MANAGER_ROLES = (OrgRole.OWNER, OrgRole.ADMIN)
@@ -54,6 +65,37 @@ class Membership(models.Model):
     def is_manager(self):
         return self.role in ORG_MANAGER_ROLES
 
+    @property
+    def is_guest(self):
+        return self.role == OrgRole.GUEST
+
+
+class Team(models.Model):
+    """Grupo de integrantes para dar acceso a proyectos de una vez (no es un contenedor)."""
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='teams')
+    name = models.CharField('nombre', max_length=60)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'equipo'
+        verbose_name_plural = 'equipos'
+        ordering = ['name', 'id']
+        constraints = [models.UniqueConstraint(fields=['organization', 'name'], name='team_unique_name_per_org')]
+
+    def __str__(self):
+        return self.name
+
+
+class TeamMember(models.Model):
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='members')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='team_memberships')
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['added_at', 'id']
+        constraints = [models.UniqueConstraint(fields=['team', 'user'], name='team_member_unique')]
+
 
 def _new_token():
     return secrets.token_urlsafe(32)
@@ -79,7 +121,8 @@ class Invitation(models.Model):
     email = models.EmailField('email', blank=True, default='')
     role = models.CharField(
         'rol', max_length=10,
-        choices=[(OrgRole.ADMIN, OrgRole.ADMIN.label), (OrgRole.MEMBER, OrgRole.MEMBER.label)],
+        choices=[(OrgRole.ADMIN, OrgRole.ADMIN.label), (OrgRole.MEMBER, OrgRole.MEMBER.label),
+                 (OrgRole.GUEST, OrgRole.GUEST.label)],
         default=OrgRole.MEMBER,
     )
     token = models.CharField(max_length=64, unique=True, default=_new_token, editable=False)

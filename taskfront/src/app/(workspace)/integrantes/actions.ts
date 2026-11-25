@@ -13,7 +13,7 @@ import { requireActiveOrganization } from '@/lib/server/organization'
  * (se resuelve en el servidor); los permisos los vuelve a verificar la API en cada llamada.
  */
 
-const ROLES: OrgRole[] = ['owner', 'admin', 'member']
+const ROLES: OrgRole[] = ['owner', 'admin', 'member', 'guest']
 const validId = (id: unknown) => Number.isInteger(id) && (id as number) > 0
 
 function refresh() {
@@ -24,7 +24,7 @@ function refresh() {
 export type InvitationCreated = { url: string; email: string; emailSent: boolean | null; role: OrgRole }
 
 export async function createInvitation(input: { role: string; email: string }): Promise<ActionResult<InvitationCreated>> {
-  const role = input.role === 'admin' ? 'admin' : 'member'
+  const role = input.role === 'admin' || input.role === 'guest' ? input.role : 'member'
   const email = input.email.trim().toLowerCase()
   const org = await requireActiveOrganization()
   const res = await apiAction<{ url: string; email: string; email_sent: boolean | null; role: OrgRole }>(
@@ -81,4 +81,60 @@ export async function leaveOrganization(): Promise<ActionResult> {
   if (!res.ok) return failure(res)
   revalidatePath('/', 'layout')
   redirect('/inicio')
+}
+
+// ── Equipos (propietarios y administradores) ────────────────────────────────
+
+function refreshTeams() {
+  revalidatePath('/integrantes')
+  revalidatePath('/proyectos', 'layout') // acceso a proyectos por equipo
+}
+
+export async function createTeam(name: string): Promise<ActionResult<{ id: number }>> {
+  const clean = name.trim()
+  if (!clean) return { ok: false, error: 'Poné un nombre para el equipo.' }
+  const org = await requireActiveOrganization()
+  const res = await apiAction<{ id: number }>(`/organizations/${org.id}/teams/`, 'POST', { name: clean.slice(0, 60) })
+  if (!res.ok) return failure(res)
+  refreshTeams()
+  return { ok: true, data: { id: res.data.id } }
+}
+
+export async function renameTeam(teamId: number, name: string): Promise<ActionResult> {
+  const clean = name.trim()
+  if (!validId(teamId)) return { ok: false, error: 'Equipo inválido.' }
+  if (!clean) return { ok: false, error: 'El nombre es obligatorio.' }
+  const org = await requireActiveOrganization()
+  const res = await apiAction(`/organizations/${org.id}/teams/${teamId}/`, 'PATCH', { name: clean.slice(0, 60) })
+  if (!res.ok) return failure(res)
+  refreshTeams()
+  return { ok: true, data: undefined }
+}
+
+/** Borrar el equipo: quienes solo tenían acceso por él lo pierden (y sus asignaciones ahí, D18). */
+export async function deleteTeam(teamId: number): Promise<ActionResult> {
+  if (!validId(teamId)) return { ok: false, error: 'Equipo inválido.' }
+  const org = await requireActiveOrganization()
+  const res = await apiAction(`/organizations/${org.id}/teams/${teamId}/`, 'DELETE')
+  if (!res.ok && res.status !== 404) return failure(res)
+  refreshTeams()
+  return { ok: true, data: undefined }
+}
+
+export async function addTeamMember(teamId: number, userId: number): Promise<ActionResult> {
+  if (!validId(teamId) || !validId(userId)) return { ok: false, error: 'Datos inválidos.' }
+  const org = await requireActiveOrganization()
+  const res = await apiAction(`/organizations/${org.id}/teams/${teamId}/members/`, 'POST', { user_id: userId })
+  if (!res.ok) return failure(res)
+  refreshTeams()
+  return { ok: true, data: undefined }
+}
+
+export async function removeTeamMember(teamId: number, userId: number): Promise<ActionResult> {
+  if (!validId(teamId) || !validId(userId)) return { ok: false, error: 'Datos inválidos.' }
+  const org = await requireActiveOrganization()
+  const res = await apiAction(`/organizations/${org.id}/teams/${teamId}/members/${userId}/`, 'DELETE')
+  if (!res.ok && res.status !== 404) return failure(res)
+  refreshTeams()
+  return { ok: true, data: undefined }
 }

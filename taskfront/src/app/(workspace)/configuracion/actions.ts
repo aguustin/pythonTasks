@@ -17,6 +17,16 @@ export async function renameOrganization(_prev: FormState, form: FormData): Prom
   return { success: 'Guardamos el nombre de la organización.', values: { name: res.data.name } }
 }
 
+/** D4: quién puede crear proyectos (propietarios y administradores). */
+export async function setProjectCreation(value: 'members' | 'managers'): Promise<ActionResult> {
+  if (value !== 'members' && value !== 'managers') return { ok: false, error: 'Opción inválida.' }
+  const org = await requireActiveOrganization()
+  const res = await apiAction(`/organizations/${org.id}/`, 'PATCH', { project_creation: value })
+  if (!res.ok) return failure(res)
+  revalidatePath('/', 'layout')
+  return { ok: true, data: undefined }
+}
+
 /** Eliminar la organización activa. Se exige el nombre exacto también en el servidor. */
 export async function deleteOrganization(confirmName: string): Promise<ActionResult> {
   const org = await requireActiveOrganization()

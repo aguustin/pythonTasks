@@ -82,3 +82,10 @@ export async function getLabels(id: number): Promise<Label[]> {
   if (!res.ok) throw new Error('No se pudieron cargar las etiquetas.')
   return res.data
 }
+
+/** Equipos con acceso al proyecto. */
+export async function getProjectTeams(id: number) {
+  const res = await apiRead<{ id: number; role: 'admin' | 'editor' | 'viewer'; team: { id: number; name: string; members: { id: number; full_name: string; email: string }[] } }[]>(`/boards/${id}/teams/`)
+  if (!res.ok) throw new Error('No se pudieron cargar los equipos del proyecto.')
+  return res.data
+}

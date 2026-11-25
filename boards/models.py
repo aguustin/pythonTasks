@@ -126,6 +126,19 @@ class Priority(models.TextChoices):
     URGENT = 'urgent', 'Urgente'
 
 
+class BoardTeam(models.Model):
+    """Acceso de un equipo completo a un proyecto, con un permiso."""
+
+    board = models.ForeignKey(Board, on_delete=models.CASCADE, related_name='team_access')
+    team = models.ForeignKey('workspaces.Team', on_delete=models.CASCADE, related_name='board_access')
+    role = models.CharField(max_length=10, choices=BoardRole.choices, default=BoardRole.EDITOR)
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['added_at', 'id']
+        constraints = [models.UniqueConstraint(fields=['board', 'team'], name='board_team_unique')]
+
+
 class Label(models.Model):
     """Etiqueta del proyecto ("Proveedor", "Cliente X"…). Color de una paleta fija."""
 

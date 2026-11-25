@@ -40,15 +40,23 @@ Usuario ──< Membresía >── Organización ──< Tablero ──< Columna
 ```
 
 - Un usuario puede pertenecer a **varias organizaciones**.
-- **Rol en la organización:** `owner` (dueño), `admin`, `member`.
+- **Rol en la organización:** `owner` (dueño), `admin`, `member`, `guest` (invitado: persona externa que solo ve
+  los proyectos que le comparten, directo o por un equipo; no ve los abiertos a la organización, no crea proyectos
+  ni ve la lista de integrantes ni los equipos).
+- **Quién crea proyectos (D4):** `organization.project_creation` = `members` (por defecto: cualquiera salvo
+  invitados) o `managers` (solo dueño y admins). Aplica también a duplicar. Lo cambian dueño y admins.
+- **Equipos:** grupos de integrantes de la organización (los gestionan dueño y admins) que se pueden sumar a un
+  proyecto con un permiso.
   - Dueño y admins: son admin de todos los tableros, invitan y gestionan miembros.
   - Los admins solo gestionan miembros comunes; solo un dueño nombra o quita dueños.
   - Siempre tiene que quedar al menos un dueño.
 - **Permiso en el tablero** (efectivo):
   1. Dueño/admin de la organización → `admin`.
-  2. Permiso explícito en el tablero → ese permiso.
-  3. Tablero con `visibility=organization` → `organization_role` del tablero.
-  4. Si no → sin acceso (la API responde 404, no revela que existe).
+  2. Si no, el **más alto** entre: el permiso directo en el tablero, el de sus equipos con acceso y, si el tablero
+     tiene `visibility=organization` y no es invitado, el `organization_role` del tablero.
+  3. Ninguno → sin acceso (la API responde 404, no revela que existe).
+  Si alguien pierde el acceso (sale de un equipo, se borra el equipo, se quita el equipo del proyecto, pasa a
+  invitado), deja de ser responsable de esas tareas (regla D18).
 
 | Acción | lector | editor | admin |
 |---|:-:|:-:|:-:|
@@ -91,13 +99,18 @@ servidor de Next.js (BFF) dentro de una cookie httpOnly; el navegador nunca los 
 | Método | Ruta | Permiso |
 |---|---|---|
 | GET/POST | `organizations/` | Mis organizaciones / crear (quedo como dueño) |
-| GET/PATCH/DELETE | `organizations/{id}/` | miembro / admin / dueño |
+| GET/PATCH/DELETE | `organizations/{id}/` | miembro / admin / dueño · PATCH `{name?, project_creation?}` |
 | POST | `organizations/{id}/leave/` | miembro |
 | GET | `organizations/{id}/members/` | miembro |
 | PATCH/DELETE | `organizations/{id}/members/{membership_id}/` | admin (ver reglas) |
 | GET | `organizations/{id}/members/{membership_id}/impact/?role=…` o `?remove=true` | admin · vista previa: tareas que la persona dejaría de tener asignadas |
 | GET/POST | `organizations/{id}/invitations/` | admin · `{email?, role}` · `?status=pending`. Con email, se envía por correo (`email_sent`) |
+| GET/POST | `organizations/{id}/teams/` | integrante (no invitado) / admin · `{name}` → incluye `members` y `projects` |
+| PATCH/DELETE | `organizations/{id}/teams/{team_id}/` | admin |
+| POST · DELETE | `organizations/{id}/teams/{team_id}/members/` `{user_id}` · `…/members/{user_id}/` | admin |
 | GET | `organizations/{id}/home/` | miembro · panel de Inicio: mis contadores, próximas tareas y (propietario/admin/líder) resumen de proyectos y carga por persona |
+| GET | `organizations/{id}/reports/?weeks=4\|8\|12\|26&board=` | miembro · completadas y creadas por semana, por persona (completadas, abiertas, vencidas) y totales; solo proyectos que ve |
+| GET | `organizations/{id}/reports/completed/?weeks=&board=` | miembro · detalle de completadas del período (para exportar a CSV; máx. 5000) |
 | GET | `organizations/{id}/activity/` | miembro · actividad reciente de los proyectos que ve (paginado) |
 | DELETE | `organizations/{id}/invitations/{inv_id}/` | admin (revoca) |
 | GET | `invitations/{token}/` | **público** — datos para mostrar la invitación |
@@ -122,6 +135,8 @@ El link de invitación es `{FRONTEND_URL}/invitacion/{token}`.
 | PATCH | `boards/{id}/columns/{col_id}/` | admin · `{name, color, is_done}` |
 | DELETE | `boards/{id}/columns/{col_id}/?move_to={col_id}` | admin (`move_to` obligatorio si tiene tareas) |
 | POST | `boards/{id}/columns/reorder/` | admin · `{order: [ids]}` |
+| GET/POST | `boards/{id}/teams/` | lector / admin · `{team_id, role}` (equipo de la misma organización) |
+| PATCH/DELETE | `boards/{id}/teams/{access_id}/` | admin · `{role}` |
 | GET/POST | `boards/{id}/labels/` | lector / editor · `{name, color}` (`gray`/`red`/`orange`/`yellow`/`green`/`teal`/`blue`/`purple`), nombre único por proyecto |
 | PATCH/DELETE | `boards/{id}/labels/{label_id}/` | admin |
 | GET/POST | `tasks/{id}/checklist/` | lector / editor · `{text}` |

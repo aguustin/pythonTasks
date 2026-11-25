@@ -61,9 +61,9 @@ export function activityText(a: Pick<Activity, 'verb' | 'verb_display' | 'data'>
     case 'board_updated': return `cambió ${fieldsText(d)} del proyecto`
     case 'board_archived': return 'archivó el proyecto'
     case 'board_restored': return 'restauró el proyecto'
-    case 'member_added': return `sumó a ${str(d.user)} como ${roleText(d.role)}`
-    case 'member_updated': return `cambió el permiso de ${str(d.user)} a ${roleText(d.role)}`
-    case 'member_removed': return `quitó a ${str(d.user)} del proyecto`
+    case 'member_added': return `sumó ${contract('a', str(d.user))} como ${roleText(d.role)}`
+    case 'member_updated': return `cambió el permiso ${contract('de', str(d.user))} a ${roleText(d.role)}`
+    case 'member_removed': return `quitó ${contract('a', str(d.user))} del proyecto`
     case 'assignees_removed': {
       const users = Array.isArray(d.users) ? d.users.map((u) => str((u as { full_name?: unknown })?.full_name)).filter(Boolean) : []
       return users.length ? `quitó como responsables a ${joinEs(users)} (ya no tienen acceso)` : 'quitó responsables sin acceso'
@@ -79,6 +79,11 @@ export function activityText(a: Pick<Activity, 'verb' | 'verb_display' | 'data'>
     case 'comment_added': return inTask ? 'comentó' : `comentó en ${t}`
     default: return a.verb_display.toLowerCase()
   }
+}
+
+/** "a el equipo X" → "al equipo X"; "de el…" → "del…". */
+function contract(prep: 'a' | 'de', who: string) {
+  return who.startsWith('el ') ? `${prep === 'a' ? 'al' : 'del'} ${who.slice(3)}` : `${prep} ${who}`
 }
 
 function roleText(role: unknown) {

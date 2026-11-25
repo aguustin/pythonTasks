@@ -2,12 +2,14 @@ import { AccessBadge, ProgressBar } from '@/components/projects/ProjectBits'
 import { DuplicateProject } from '@/components/projects/DuplicateProject'
 import { ArchivedBanner } from '@/components/projects/ProjectSettings'
 import { PageBar } from '@/components/ui/PageHeader'
+import { canCreateProjects } from '@/lib/permissions'
 import { isLeader } from '@/lib/projects'
+import { requireActiveOrganization } from '@/lib/server/organization'
 import { getProject } from '@/lib/server/projects'
 
 /** Marco de un proyecto: barra con migas, avance, acceso y pestañas de vista. */
 export default async function ProjectLayout({ children, params }: LayoutProps<'/proyectos/[id]'>) {
-  const project = await getProject(Number((await params).id))
+  const [project, org] = await Promise.all([getProject(Number((await params).id)), requireActiveOrganization()])
   const base = `/proyectos/${project.id}`
   return (
     <>
@@ -27,7 +29,7 @@ export default async function ProjectLayout({ children, params }: LayoutProps<'/
               <ProgressBar project={project} width="w-20" showCount />
               <AccessBadge project={project} />
             </span>
-            <DuplicateProject projectId={project.id} title={project.title} isLeader={isLeader(project)} />
+            {canCreateProjects(org) && <DuplicateProject projectId={project.id} title={project.title} isLeader={isLeader(project)} />}
           </>
         }
       />

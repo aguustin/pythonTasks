@@ -32,6 +32,8 @@ def remove_membership(membership):
     org_id = membership.organization_id
     user = membership.user
     BoardMember.objects.filter(board__organization_id=org_id, user=user).delete()
+    from workspaces.models import TeamMember
+    TeamMember.objects.filter(team__organization_id=org_id, user=user).delete()
     for task in Task.objects.filter(board__organization_id=org_id, assignees=user):
         task.assignees.remove(user)
     membership.delete()

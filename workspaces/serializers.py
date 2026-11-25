@@ -10,7 +10,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Organization
-        fields = ['id', 'name', 'created_at', 'my_role', 'members_count']
+        fields = ['id', 'name', 'created_at', 'my_role', 'members_count', 'project_creation']
         read_only_fields = ['id', 'created_at']
 
     def validate_name(self, value):

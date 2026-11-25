@@ -1,6 +1,6 @@
 'use client'
 
-import { Bell, FolderKanban, House, ListChecks, Plus, Search, Settings, Star, Users, type LucideIcon } from 'lucide-react'
+import { BarChart3, Bell, FolderKanban, House, ListChecks, Plus, Search, Settings, Star, Users, type LucideIcon } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
@@ -19,7 +19,7 @@ export type SidebarProject = { id: number; title: string; color: string; tasks_d
 /**
  * Menú lateral (dirección C · "Mesa de planificación"):
  * Mi trabajo arriba, Proyectos como navegación principal, equipo y configuración al pie.
- * Calendario y Reportes no aparecen hasta que existan (D13).
+ * Reportes va al pie, junto a Integrantes (D13: aparece porque ya existe).
  */
 const MY_WORK: Item[] = [
   { href: '/inicio', label: 'Inicio', icon: House },
@@ -28,6 +28,7 @@ const MY_WORK: Item[] = [
 ]
 const FOOTER: Item[] = [
   { href: '/integrantes', label: 'Integrantes', icon: Users },
+  { href: '/reportes', label: 'Reportes', icon: BarChart3 },
   { href: '/configuracion', label: 'Configuración', icon: Settings },
 ]
 
@@ -101,6 +102,7 @@ export function Sidebar({ organizations, activeOrgId, user, projects, moreProjec
   /** Avisos sin leer (contador de Notificaciones). */
   unread: number
 }) {
+  const guest = organizations.find((o) => o.id === activeOrgId)?.my_role === 'guest'
   return (
     <div className="flex h-full flex-col bg-sidebar px-3 pb-3 pt-4">
       <Link href="/inicio" onClick={onNavigate} className="mb-3 px-1" aria-label="Velatrix One · Projects — Inicio">
@@ -133,7 +135,9 @@ export function Sidebar({ organizations, activeOrgId, user, projects, moreProjec
           </li>
         </Group>
         <ul className="mt-auto space-y-0.5 border-t border-sidebar-border pt-3">
-          {FOOTER.map((item) => <li key={item.href}><NavLink item={item} onNavigate={onNavigate} /></li>)}
+          {/* Los invitados no ven la lista de integrantes ni los equipos. */}
+          {FOOTER.filter((item) => !(guest && item.href === '/integrantes'))
+            .map((item) => <li key={item.href}><NavLink item={item} onNavigate={onNavigate} /></li>)}
         </ul>
       </nav>
       <div className="mt-2 border-t border-sidebar-border pt-2">

@@ -24,7 +24,7 @@ from boards.access import (
 from boards.filters import filter_tasks
 from notifications import services as notify
 from boards.models import (
-    Activity, Board, BoardMember, BoardRole, ChecklistItem, Column, Comment, Label, Priority, ProjectFavorite, Task,
+    Activity, Board, BoardMember, BoardRole, BoardTeam, ChecklistItem, Column, Comment, Label, Priority, ProjectFavorite, Task,
 )
 from boards.serializers import (
     AccessPreviewSerializer,
@@ -32,6 +32,7 @@ from boards.serializers import (
     BoardDetailSerializer,
     BoardMemberSerializer,
     BoardSerializer,
+    BoardTeamSerializer,
     ChecklistItemSerializer,
     ColumnSerializer,
     CommentSerializer,
@@ -40,7 +41,7 @@ from boards.serializers import (
     TaskSerializer,
     TaskSummarySerializer,
 )
-from workspaces.access import require_membership
+from workspaces.access import require_can_create_projects, require_membership
 
 # De más urgente a menos urgente (para ordenar "Mis tareas" e Inicio).
 PRIORITY_ORDER = [Priority.URGENT, Priority.HIGH, Priority.MEDIUM, Priority.LOW]
@@ -127,7 +128,7 @@ class BoardViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         org = serializer.validated_data.pop('organization')
-        require_membership(self.request.user, org.pk)
+        require_can_create_projects(self.request.user, org.pk)  # D4
         board = services.create_board(self.request.user, org, **serializer.validated_data)
         serializer.instance = self._fresh(board)
 
@@ -174,10 +175,10 @@ class BoardViewSet(viewsets.ModelViewSet):
     def duplicate(self, request, pk=None):
         """
         POST /boards/<id>/duplicate/ {title, include_tasks?, include_members?, keep_dates?}
-        Cualquiera que vea el proyecto y sea de la organización (puede crear proyectos, D4).
+        Cualquiera que vea el proyecto y pueda crear proyectos en la organización (D4).
         """
         source = self.get_object()
-        require_membership(request.user, source.organization_id)
+        require_can_create_projects(request.user, source.organization_id)
         title = str(request.data.get('title', '')).strip()
         if not title:
             raise ValidationError({'title': 'Poné un nombre para el proyecto.'})
@@ -316,6 +317,45 @@ class ColumnViewSet(BoardScopedMixin, viewsets.ModelViewSet):
             raise ValidationError({'order': 'Enviá una lista de IDs de columnas.'})
         services.reorder_columns(self.board, order)
         return Response(ColumnSerializer(self.get_queryset(), many=True).data)
+
+
+# ── Equipos con acceso al proyecto ─────────────────────────────────────────
+
+class BoardTeamViewSet(BoardScopedMixin, viewsets.ModelViewSet):
+    """
+    GET (lector) / POST {team_id, role} (líder) /boards/<id>/teams/
+    PATCH {role} / DELETE (líder) /boards/<id>/teams/<access_id>/
+    Quitar a un equipo saca el acceso de quienes solo lo tenían por él (y sus asignaciones, D18).
+    """
+
+    pagination_class = None
+    http_method_names = ['get', 'post', 'patch', 'delete']
+
+    def get_serializer_class(self):
+        return BoardTeamSerializer
+
+    def get_queryset(self):
+        return BoardTeam.objects.filter(board=self.board).select_related('team').prefetch_related('team__members__user')
+
+    def perform_create(self, serializer):
+        self.require(BoardRole.ADMIN)
+        access = serializer.save(board=self.board)
+        services.log(self.board, self.request.user, Activity.Verb.MEMBER_ADDED,
+                     user=f'el equipo {access.team.name}', role=access.role)
+
+    def perform_update(self, serializer):
+        self.require(BoardRole.ADMIN)
+        access = serializer.save()
+        services.log(self.board, self.request.user, Activity.Verb.MEMBER_UPDATED,
+                     user=f'el equipo {access.team.name}', role=access.role)
+        services.prune_assignees(self.board, self.request.user)  # bajar de rol no quita acceso, pero por las dudas
+
+    def perform_destroy(self, instance):
+        self.require(BoardRole.ADMIN)
+        name = instance.team.name
+        instance.delete()
+        services.log(self.board, self.request.user, Activity.Verb.MEMBER_REMOVED, user=f'el equipo {name}')
+        services.prune_assignees(self.board, self.request.user)  # D18
 
 
 # ── Etiquetas ───────────────────────────────────────────────────────────────

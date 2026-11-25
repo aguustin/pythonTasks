@@ -1,8 +1,8 @@
-import { Crown, ShieldCheck, UserRound } from 'lucide-react'
+import { Crown, Handshake, ShieldCheck, UserRound } from 'lucide-react'
 
 import { initials, ROLE_LABELS, type OrgRole } from '@/lib/labels'
 
-const ROLE_ICONS = { owner: Crown, admin: ShieldCheck, member: UserRound }
+const ROLE_ICONS = { owner: Crown, admin: ShieldCheck, member: UserRound, guest: Handshake }
 
 /** Rol con ícono + texto, en neutro: en Projects el azul no comunica estados ni jerarquías. */
 export function RoleBadge({ role }: { role: OrgRole }) {

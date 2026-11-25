@@ -1,14 +1,16 @@
 'use client'
 
 import { Trash2 } from 'lucide-react'
-import { useActionState, useState } from 'react'
+import { useActionState, useState, useTransition } from 'react'
 
-import { deleteOrganization, renameOrganization } from '@/app/(workspace)/configuracion/actions'
+import { deleteOrganization, renameOrganization, setProjectCreation } from '@/app/(workspace)/configuracion/actions'
 import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Field } from '@/components/ui/Field'
+import { Select } from '@/components/ui/Select'
 import { SubmitButton } from '@/components/ui/SubmitButton'
+import { useToast } from '@/components/ui/Toast'
 import { initialFormState } from '@/lib/forms'
 
 export function RenameOrganizationForm({ name }: { name: string }) {
@@ -21,6 +23,34 @@ export function RenameOrganizationForm({ name }: { name: string }) {
         error={state.errors?.fields?.name} />
       <SubmitButton pendingLabel="Guardando…" variant="secondary">Guardar cambios</SubmitButton>
     </form>
+  )
+}
+
+export const PROJECT_CREATION_LABELS = {
+  members: 'Integrantes, administradores y propietarios',
+  managers: 'Solo administradores y propietarios',
+} as const
+
+/** D4: se guarda al elegir. Es reversible (se vuelve a cambiar), por eso no pide confirmación. */
+export function ProjectCreationSetting({ value }: { value: 'members' | 'managers' }) {
+  const toast = useToast()
+  const [pending, startTransition] = useTransition()
+  const [current, setCurrent] = useState(value)
+  return (
+    <Select label="Quién puede crear proyectos" name="project_creation" value={current} disabled={pending} className="max-w-sm"
+      hint="Incluye duplicar proyectos. Los invitados nunca crean proyectos."
+      onChange={(e) => {
+        const next = e.target.value as 'members' | 'managers'
+        const prev = current
+        setCurrent(next)
+        startTransition(async () => {
+          const res = await setProjectCreation(next).catch(() => ({ ok: false as const, error: 'No se pudo conectar. Revisá tu conexión e intentá de nuevo.' }))
+          if (!res.ok) { setCurrent(prev); toast({ tone: 'error', message: res.error }) }
+          else toast({ tone: 'success', message: 'Guardamos quién puede crear proyectos.' })
+        })
+      }}>
+      {(Object.keys(PROJECT_CREATION_LABELS) as ('members' | 'managers')[]).map((k) => <option key={k} value={k}>{PROJECT_CREATION_LABELS[k]}</option>)}
+    </Select>
   )
 }
 
