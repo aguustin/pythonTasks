@@ -127,9 +127,13 @@ El link de invitación es `{FRONTEND_URL}/invitacion/{token}`.
 | POST | `tasks/{id}/move/` | editor, o lector asignado · `{column, position?}` |
 | POST | `tasks/{id}/complete/` | editor, o lector asignado · a la primera columna de terminadas. Devuelve `previous: {column, position}` para deshacer con `move/` |
 | POST | `tasks/{id}/reopen/` | editor, o lector asignado · a la primera columna sin terminar, al final |
+| GET/POST/DELETE | `tasks/{id}/follow/` | lector · seguir la tarea → `{following}`. Quien la sigue recibe sus comentarios y cuando se termina |
 | GET | `boards/{id}/people/` | lector · personas con acceso al proyecto y su permiso efectivo (para elegir responsables) |
 | GET/POST | `tasks/{id}/comments/` | lector |
-| PATCH/DELETE | `comments/{id}/` | autor / autor o admin |
+| PATCH/DELETE | `comments/{id}/` | autor / autor o admin. Comentarios: `{text, mention_ids?}`; solo cuentan las personas con acceso cuyo `@Nombre` está en el texto |
+| GET | `notifications/?organization={id}[&unread=true]` | mis avisos (paginado) en proyectos que hoy puedo ver |
+| GET | `notifications/unread-count/?organization={id}` | `{count}` |
+| POST | `notifications/{id}/read/` · `notifications/read-all/?organization={id}` | marcar como leídos |
 | GET | `my-tasks/` | mis tareas asignadas, en todas mis organizaciones (incluye `board_title`, `board_color`, `column_name`, `is_done`) |
 
 **Regla de responsables:** todo responsable tiene acceso al proyecto. Si alguien pierde el acceso (sale del
@@ -142,6 +146,11 @@ queda registrado en la actividad (`assignees_removed`). Las vistas previas sirve
 **Filtros** (`boards/{id}/tasks/` y `my-tasks/`): `assignee=<id>|me|none`, `priority=high,urgent`,
 `due=overdue|today|week|none`, `status=open|done|all`, `column=<id>`, `q=texto`.
 En `my-tasks/` además `organization=<id>`; por defecto `status=open`.
+
+**Avisos (notificaciones):** te asignaron · comentaron en una tarea tuya o que seguís · te mencionaron · se terminó
+una tarea tuya o que seguís · vence mañana. Nunca se avisa a quien hizo la acción ni a quien no tiene acceso al
+proyecto; la mención reemplaza al aviso de comentario. "Vence mañana" se genera al consultar los avisos (una vez por
+tarea y día), sin tareas programadas.
 
 **Inicio y Mis tareas usan los mismos grupos:** vencidas (antes de hoy) · hoy · esta semana (de mañana a 7 días)
 · más adelante · sin fecha; solo tareas abiertas de proyectos no archivados. Los contadores de

@@ -13,6 +13,7 @@ api_v1 = [
     path('', include('accounts.urls')),
     path('', include('workspaces.urls')),
     path('', include('boards.urls')),
+    path('', include('notifications.urls')),
 ]
 
 urlpatterns = [

@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     'accounts',
     'workspaces',
     'boards',
+    'notifications',
 ]
 if CLOUDINARY_ENABLED:
     INSTALLED_APPS += ['cloudinary_storage', 'cloudinary']

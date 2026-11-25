@@ -38,7 +38,7 @@ export default async function ProjectBoardPage({ params, searchParams }: PagePro
         archived={Boolean(project.archived_at)}
         today={todayISO()}
         people={people}
-        detail={detail && { taskId: detail.task.id, comments: detail.comments, history: detail.history }}
+        detail={detail && { taskId: detail.task.id, comments: detail.comments, history: detail.history, following: detail.following }}
       />
     </PageBody>
   )

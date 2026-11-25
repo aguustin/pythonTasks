@@ -26,7 +26,7 @@ export type Task = {
 
 export type PersonWithRole = Person & { role: BoardRole }
 
-export type Comment = { id: number; task: number; author: Person | null; text: string; created_at: string; updated_at: string }
+export type Comment = { id: number; task: number; author: Person | null; text: string; mentions?: Person[]; created_at: string; updated_at: string }
 
 /** Comentarios: cualquiera con acceso comenta; cada uno edita lo suyo; borra el autor o el líder. */
 export const canEditComment = (c: Pick<Comment, 'author'>, userId: number, archived: boolean) => !archived && c.author?.id === userId

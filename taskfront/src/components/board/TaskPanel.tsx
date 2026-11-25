@@ -1,10 +1,11 @@
 'use client'
 
-import { ChevronDown, History, Link2, Trash2, X } from 'lucide-react'
+import { Bell, BellRing, ChevronDown, History, Link2, Trash2, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 import { ActionMenu } from '@/components/ui/ActionMenu'
 import { Avatar } from '@/components/ui/Badges'
+import { followTask } from '@/app/(workspace)/proyectos/actions'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useToast } from '@/components/ui/Toast'
 import { activityText, stamp, type Activity } from '@/lib/activity'
@@ -33,7 +34,7 @@ export function TaskPanel({ projectId, task, missing, detail, columns, currentCo
   task: Task | null
   /** La tarea no existe o no es de este proyecto. */
   missing: boolean
-  detail: { comments: Comment[]; history: Activity[] } | null
+  detail: { comments: Comment[]; history: Activity[]; following: boolean } | null
   columns: Column[]
   currentColumn: number | null
   people: PersonWithRole[]
@@ -55,6 +56,24 @@ export function TaskPanel({ projectId, task, missing, detail, columns, currentCo
   const [title, setTitle] = useState<string | null>(null)
   const [description, setDescription] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+
+  // Seguir la tarea: se toma del detalle y se cambia al momento (vuelve atrás si la API falla).
+  const [followSource, setFollowSource] = useState(detail)
+  const [following, setFollowing] = useState(detail?.following ?? false)
+  if (detail !== followSource) {
+    setFollowSource(detail)
+    if (detail) setFollowing(detail.following)
+  }
+  const toggleFollow = async () => {
+    if (!task) return
+    const next = !following
+    setFollowing(next)
+    const res = await followTask(task.id, next).catch(() => ({ ok: false as const, error: 'No se pudo conectar.' }))
+    if (!res.ok) {
+      setFollowing(!next)
+      toast({ tone: 'error', message: res.error })
+    } else toast({ tone: 'info', message: next ? 'Vas a recibir avisos de esta tarea.' : 'Ya no seguís esta tarea.' })
+  }
 
   // Foco al abrir (para teclado y lectores de pantalla).
   useEffect(() => {
@@ -141,6 +160,15 @@ export function TaskPanel({ projectId, task, missing, detail, columns, currentCo
         <span aria-live="polite" className="ml-auto font-mono text-[11px] text-subtle">
           {status === 'saving' ? 'Guardando…' : status === 'saved' ? 'Guardado' : ''}
         </span>
+        {shown && (
+          <button type="button" onClick={toggleFollow} disabled={!detail} aria-pressed={following}
+            aria-label={following ? 'Dejar de seguir la tarea' : 'Seguir la tarea'}
+            title={following ? 'Siguiendo: recibís sus comentarios y cuando se termina' : 'Seguir: recibí sus comentarios y cuando se termina'}
+            className={`inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-sm)] px-2 text-[12px] font-medium hover:bg-surface-2 ${following ? 'text-accent-text' : 'text-muted hover:text-text'}`}>
+            {following ? <BellRing aria-hidden size={16} /> : <Bell aria-hidden size={16} />}
+            <span className="hidden sm:inline">{following ? 'Siguiendo' : 'Seguir'}</span>
+          </button>
+        )}
         {shown && (
           <button type="button" onClick={copyLink} aria-label="Copiar enlace de la tarea" title="Copiar enlace"
             className="grid size-8 place-items-center rounded-[var(--radius-sm)] text-muted hover:bg-surface-2 hover:text-text">
@@ -253,7 +281,7 @@ export function TaskPanel({ projectId, task, missing, detail, columns, currentCo
             <hr className="border-border" />
 
             <Comments key={shown.id} taskId={shown.id} initial={detail?.comments ?? EMPTY} loading={!detail}
-              me={me} role={role} archived={archived} today={today} />
+              me={me} role={role} archived={archived} today={today} people={people} />
 
             <details className="group/h rounded-[var(--radius-md)] border border-border">
               <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-[13px] font-semibold [&::-webkit-details-marker]:hidden">

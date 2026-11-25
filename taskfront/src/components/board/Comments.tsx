@@ -14,6 +14,8 @@ import { stamp } from '@/lib/activity'
 import type { BoardRole } from '@/lib/projects'
 import { canDeleteComment, canEditComment, type Comment, type Person } from '@/lib/tasks'
 
+import { mentionedIds, MentionInput, MentionText } from './MentionInput'
+
 type Shown = Comment & { pending?: boolean }
 
 const NETWORK = 'No se pudo conectar. Revisá tu conexión e intentá de nuevo.'
@@ -23,7 +25,7 @@ const edited = (c: Comment) => new Date(c.updated_at).getTime() - new Date(c.cre
  * Comentarios de la tarea (F13). El nuevo aparece al instante; si la API lo rechaza, el texto
  * vuelve al cuadro con el error. Editar: solo el autor. Eliminar: el autor o el líder.
  */
-export function Comments({ taskId, initial, loading, me, role, archived, today }: {
+export function Comments({ taskId, initial, loading, me, role, archived, today, people }: {
   taskId: number
   initial: Comment[]
   loading: boolean
@@ -31,6 +33,8 @@ export function Comments({ taskId, initial, loading, me, role, archived, today }
   role: BoardRole
   archived: boolean
   today: string
+  /** Personas con acceso, para mencionar con @. */
+  people: Person[]
 }) {
   const router = useRouter()
   const toast = useToast()
@@ -40,6 +44,7 @@ export function Comments({ taskId, initial, loading, me, role, archived, today }
   const [error, setError] = useState<string | null>(null)
   const [editing, setEditing] = useState<{ id: number; text: string; busy: boolean; error?: string } | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<Comment | null>(null)
+  const mentionable = people.filter((p) => p.id !== me.id)
 
   // Datos nuevos del servidor (después de un refresco): se adoptan, conservando lo que se está enviando.
   if (initial !== source) {
@@ -54,7 +59,7 @@ export function Comments({ taskId, initial, loading, me, role, archived, today }
     setList((all) => [...all, temp])
     setDraft('')
     setError(null)
-    const res = await addComment(taskId, text).catch(() => ({ ok: false as const, error: NETWORK }))
+    const res = await addComment(taskId, text, mentionedIds(text, mentionable)).catch(() => ({ ok: false as const, error: NETWORK }))
     if (res.ok) {
       setList((all) => all.map((c) => (c.id === temp.id ? res.data : c)))
       router.refresh() // contador de la tarjeta e historial
@@ -68,7 +73,7 @@ export function Comments({ taskId, initial, loading, me, role, archived, today }
   const saveEdit = async () => {
     if (!editing) return
     setEditing({ ...editing, busy: true, error: undefined })
-    const res = await editComment(editing.id, editing.text).catch(() => ({ ok: false as const, error: NETWORK }))
+    const res = await editComment(editing.id, editing.text, mentionedIds(editing.text, mentionable)).catch(() => ({ ok: false as const, error: NETWORK }))
     if (res.ok) {
       setList((all) => all.map((c) => (c.id === res.data.id ? res.data : c)))
       setEditing(null)
@@ -106,11 +111,8 @@ export function Comments({ taskId, initial, loading, me, role, archived, today }
                   </div>
                   {isEditing ? (
                     <div className="mt-1.5">
-                      <textarea value={editing.text} onChange={(e) => setEditing({ ...editing, text: e.target.value })} aria-label="Editar comentario" autoFocus
-                        onKeyDown={(e) => {
-                          if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setEditing(null) }
-                          if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); void saveEdit() }
-                        }}
+                      <MentionInput value={editing.text} onChange={(v) => setEditing({ ...editing, text: v })} aria-label="Editar comentario" autoFocus
+                        people={mentionable} onEscape={() => setEditing(null)} onSubmit={() => void saveEdit()}
                         className="min-h-16 w-full resize-y rounded-[var(--radius-sm)] border border-input-border bg-field px-2.5 py-2 text-[13px] outline-none focus-visible:border-focus" />
                       {editing.error && <p role="alert" className="mt-1 text-[12px] text-danger">{editing.error}</p>}
                       <div className="mt-1.5 flex justify-end gap-2">
@@ -121,7 +123,7 @@ export function Comments({ taskId, initial, loading, me, role, archived, today }
                       </div>
                     </div>
                   ) : (
-                    <p className="mt-0.5 whitespace-pre-wrap break-words text-[13px] leading-relaxed text-text">{c.text}</p>
+                    <p className="mt-0.5 whitespace-pre-wrap break-words text-[13px] leading-relaxed text-text"><MentionText text={c.text} mentions={c.mentions} /></p>
                   )}
                 </div>
               </li>
@@ -132,10 +134,10 @@ export function Comments({ taskId, initial, loading, me, role, archived, today }
 
       {canWrite ? (
         <form className="mt-4" onSubmit={(e) => { e.preventDefault(); void send() }}>
-          <textarea value={draft} onChange={(e) => setDraft(e.target.value)} aria-label="Escribir un comentario"
-            placeholder="Escribí un comentario…" maxLength={5000}
+          <MentionInput value={draft} onChange={setDraft} aria-label="Escribir un comentario" people={mentionable}
+            placeholder="Escribí un comentario… (@ para mencionar)" maxLength={5000}
             aria-invalid={error ? true : undefined}
-            onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); void send() } }}
+            onSubmit={() => void send()}
             className="min-h-18 w-full resize-y rounded-[var(--radius-field)] border border-input-border bg-field px-3 py-2 text-[13px] outline-none placeholder:text-subtle focus-visible:border-focus focus-visible:shadow-[0_0_0_3px_var(--accent-soft)]" />
           {error && <p role="alert" className="mt-1 text-[12px] text-danger">{error}</p>}
           <div className="mt-2 flex items-center justify-between gap-3">

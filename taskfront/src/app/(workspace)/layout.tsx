@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 
 import { AppShell } from '@/components/shell/AppShell'
-import { getActiveOrganization, getOrganizations, requireUser } from '@/lib/server/dal'
+import { apiRead, getActiveOrganization, getOrganizations, requireUser } from '@/lib/server/dal'
 import { getProjects } from '@/lib/server/projects'
 
 /** Cuántos proyectos se muestran en el menú lateral (favoritos primero). */
@@ -12,7 +12,10 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
   const user = await requireUser()
   const [organizations, active] = await Promise.all([getOrganizations(), getActiveOrganization()])
   if (!active) redirect('/bienvenida')
-  const projects = await getProjects(active.id)
+  const [projects, unread] = await Promise.all([
+    getProjects(active.id),
+    apiRead<{ count: number }>(`/notifications/unread-count/?organization=${active.id}`),
+  ])
 
   return (
     <AppShell
@@ -21,6 +24,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
       activeOrgId={active.id}
       projects={projects.slice(0, SIDEBAR_PROJECTS).map(({ id, title, color, tasks_done, tasks_total, is_favorite }) => ({ id, title, color, tasks_done, tasks_total, is_favorite }))}
       moreProjects={Math.max(0, projects.length - SIDEBAR_PROJECTS)}
+      initialUnread={unread.ok ? unread.data.count : 0}
       writableProjects={projects.filter((p) => p.my_role !== 'viewer').map(({ id, title }) => ({ id, title }))}
     >
       {children}

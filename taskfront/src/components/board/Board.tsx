@@ -69,7 +69,7 @@ export function Board({ projectId, columns, tasks, role, me, archived, today, pe
   today: string
   people: PersonWithRole[]
   /** Comentarios e historial de la tarea abierta en la URL (?tarea=), si existe en este proyecto. */
-  detail: { taskId: number; comments: Comment[]; history: Activity[] } | null
+  detail: { taskId: number; comments: Comment[]; history: Activity[]; following: boolean } | null
 }) {
   const router = useRouter()
   const toast = useToast()

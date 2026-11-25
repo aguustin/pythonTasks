@@ -199,4 +199,7 @@ def move_task(task, column, position, actor):
                 Task.objects.filter(pk=t.pk).update(position=i)
         log(task.board, actor, Activity.Verb.TASK_MOVED, task=task,
             title=task.title, from_column=source.name, to_column=column.name)
+        if column.is_done and not source.is_done:
+            from notifications.services import notify_completed  # evita importación circular
+            notify_completed(task, actor)
     return task

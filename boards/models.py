@@ -136,6 +136,8 @@ class Task(models.Model):
     priority = models.CharField(max_length=10, choices=Priority.choices, default=Priority.MEDIUM)
     due_date = models.DateField('fecha límite', null=True, blank=True)
     assignees = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='assigned_tasks', blank=True)
+    # Personas que siguen la tarea sin ser responsables: reciben sus novedades (comentarios, terminada).
+    followers = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='followed_tasks', blank=True)
     position = models.PositiveIntegerField(default=0)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='+'
@@ -161,6 +163,8 @@ class Comment(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='comments')
     author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='+')
     text = models.TextField()
+    # Personas mencionadas con @ (solo con acceso al proyecto). El texto guarda "@Nombre Apellido".
+    mentions = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='+', blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

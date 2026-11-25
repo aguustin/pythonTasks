@@ -254,21 +254,31 @@ export async function deleteTask(taskId: number): Promise<ActionResult> {
 
 // ── Comentarios ──────────────────────────────────────────────────────────────
 
-export async function addComment(taskId: number, text: string): Promise<ActionResult<Comment>> {
+/** Seguir o dejar de seguir una tarea (cualquiera con acceso). */
+export async function followTask(taskId: number, follow: boolean): Promise<ActionResult<boolean>> {
+  if (!validId(taskId)) return { ok: false, error: 'Tarea inválida.' }
+  const res = await apiAction<{ following: boolean }>(`/tasks/${taskId}/follow/`, follow ? 'POST' : 'DELETE')
+  if (!res.ok && res.status === 404) return { ok: false, error: GONE }
+  if (!res.ok) return failure(res)
+  return { ok: true, data: res.data.following }
+}
+
+/** `mentionIds`: personas mencionadas con @ (la API descarta a quien no tenga acceso). */
+export async function addComment(taskId: number, text: string, mentionIds: number[] = []): Promise<ActionResult<Comment>> {
   const clean = text.trim()
   if (!validId(taskId)) return { ok: false, error: 'Tarea inválida.' }
   if (!clean) return { ok: false, error: 'Escribí un comentario.' }
-  const res = await apiAction<Comment>(`/tasks/${taskId}/comments/`, 'POST', { text: clean.slice(0, 5000) })
+  const res = await apiAction<Comment>(`/tasks/${taskId}/comments/`, 'POST', { text: clean.slice(0, 5000), mention_ids: mentionIds.filter(validId) })
   if (!res.ok && res.status === 404) return { ok: false, error: GONE }
   if (!res.ok) return failure(res)
   return { ok: true, data: res.data }
 }
 
-export async function editComment(commentId: number, text: string): Promise<ActionResult<Comment>> {
+export async function editComment(commentId: number, text: string, mentionIds: number[] = []): Promise<ActionResult<Comment>> {
   const clean = text.trim()
   if (!validId(commentId)) return { ok: false, error: 'Comentario inválido.' }
   if (!clean) return { ok: false, error: 'El comentario no puede quedar vacío.' }
-  const res = await apiAction<Comment>(`/comments/${commentId}/`, 'PATCH', { text: clean.slice(0, 5000) })
+  const res = await apiAction<Comment>(`/comments/${commentId}/`, 'PATCH', { text: clean.slice(0, 5000), mention_ids: mentionIds.filter(validId) })
   if (!res.ok && res.status === 404) return { ok: false, error: 'El comentario ya no existe.' }
   if (!res.ok) return failure(res)
   return { ok: true, data: res.data }
@@ -322,7 +332,7 @@ export async function deleteColumn(boardId: number, columnId: number, moveTo: nu
   return { ok: true, data: undefined }
 }
 
-export type TaskDetailData = { taskId: number; comments: Comment[]; history: Activity[] }
+export type TaskDetailData = { taskId: number; comments: Comment[]; history: Activity[]; following: boolean }
 
 /**
  * Comentarios e historial de una tarea, para abrir el panel sin volver a renderizar todo el
@@ -330,15 +340,16 @@ export type TaskDetailData = { taskId: number; comments: Comment[]; history: Act
  */
 export async function loadTaskDetail(projectId: number, taskId: number): Promise<ActionResult<TaskDetailData | null>> {
   if (!validId(projectId) || !validId(taskId)) return { ok: true, data: null }
-  const [task, comments, history] = await Promise.all([
+  const [task, comments, history, follow] = await Promise.all([
     apiAction<Task>(`/tasks/${taskId}/`, 'GET'),
     apiAction<Page<Comment>>(`/tasks/${taskId}/comments/?page_size=200`, 'GET'),
     apiAction<Page<Activity>>(`/boards/${projectId}/activity/?task=${taskId}&page_size=100`, 'GET'),
+    apiAction<{ following: boolean }>(`/tasks/${taskId}/follow/`, 'GET'),
   ])
   if (!task.ok || task.data.board !== projectId) return { ok: true, data: null }
   if (!comments.ok) return failure(comments)
   if (!history.ok) return failure(history)
-  return { ok: true, data: { taskId, comments: comments.data.results, history: history.data.results } }
+  return { ok: true, data: { taskId, comments: comments.data.results, history: history.data.results, following: follow.ok && follow.data.following } }
 }
 
 // ── Mi trabajo (Inicio y Mis tareas) ─────────────────────────────────────────

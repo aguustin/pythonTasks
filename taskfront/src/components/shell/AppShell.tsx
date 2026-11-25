@@ -9,6 +9,8 @@ import { Brand } from '@/components/brand/Brand'
 import { ToastProvider } from '@/components/ui/Toast'
 import type { OrgRole } from '@/lib/labels'
 
+import { getUnreadCount } from '@/app/(workspace)/notificaciones/actions'
+
 import { NewTaskDialog, type WritableProject } from './NewTaskDialog'
 import { Sidebar, type SidebarProject } from './Sidebar'
 
@@ -24,7 +26,9 @@ const typing = (el: Element | null) =>
  * Atajos globales (fuera de campos de texto y diálogos): N nueva tarea · / buscar o filtrar.
  * En el tablero, además: M mover la tarea enfocada o abierta. Esc cierra lo que esté abierto.
  */
-export function AppShell({ user, organizations, activeOrgId, projects, moreProjects, writableProjects, children }: {
+export function AppShell({ user, organizations, activeOrgId, projects, moreProjects, writableProjects, initialUnread, children }: {
+  /** Avisos sin leer al cargar; después se actualiza cada minuto y al cambiar de página. */
+  initialUnread: number
   user: { full_name: string; email: string }
   /** Proyectos donde la persona puede crear tareas (para "+ Nueva tarea"). */
   writableProjects: WritableProject[]
@@ -67,9 +71,19 @@ export function AppShell({ user, organizations, activeOrgId, projects, moreProje
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [])
+  // Contador de avisos: cada minuto y al navegar (el layout no se vuelve a pedir al servidor).
+  const [unread, setUnread] = useState(initialUnread)
+  useEffect(() => {
+    let cancelled = false
+    const update = () => getUnreadCount().then((n) => { if (!cancelled) setUnread(n) }).catch(() => {})
+    update()
+    const timer = setInterval(update, 60_000)
+    return () => { cancelled = true; clearInterval(timer) }
+  }, [pathname])
+
   const currentProject = Number(/^\/proyectos\/(\d+)/.exec(pathname)?.[1]) || null
 
-  const sidebarProps = { organizations, activeOrgId, user, projects, moreProjects, onNewTask: () => { setDrawer(false); setNewTask(true) } }
+  const sidebarProps = { organizations, activeOrgId, user, projects, moreProjects, unread, onNewTask: () => { setDrawer(false); setNewTask(true) } }
 
   return (
     // --bottom-bar: alto de la barra inferior (celular). Envuelve también a los avisos, que se
@@ -111,7 +125,7 @@ export function AppShell({ user, organizations, activeOrgId, projects, moreProje
             {children}
           </main>
         </div>
-        <BottomBar pathname={pathname} onNewTask={() => setNewTask(true)} onMenu={() => setDrawer(true)} />
+        <BottomBar pathname={pathname} unread={unread} onNewTask={() => setNewTask(true)} onMenu={() => setDrawer(true)} />
         {newTask && (
           <NewTaskDialog open onClose={() => setNewTask(false)} projects={writableProjects} defaultProjectId={currentProject} />
         )}
@@ -127,7 +141,7 @@ const BOTTOM: { href: string; label: string; icon: LucideIcon }[] = [
 ]
 
 /** Barra inferior en celular y tablet (D20): lo de todos los días a un toque. */
-function BottomBar({ pathname, onNewTask, onMenu }: { pathname: string; onNewTask: () => void; onMenu: () => void }) {
+function BottomBar({ pathname, unread, onNewTask, onMenu }: { pathname: string; unread: number; onNewTask: () => void; onMenu: () => void }) {
   const item = 'flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium'
   const link = (href: string, label: string, Icon: LucideIcon) => {
     const active = pathname === href || pathname.startsWith(`${href}/`)
@@ -150,8 +164,10 @@ function BottomBar({ pathname, onNewTask, onMenu }: { pathname: string; onNewTas
         </button>
       </div>
       {link('/proyectos', 'Proyectos', FolderKanban)}
-      <button type="button" onClick={onMenu} aria-label="Abrir menú completo" className={`${item} text-muted hover:text-text`}>
+      <button type="button" onClick={onMenu} aria-label={unread ? `Abrir menú completo (${unread} avisos sin leer)` : 'Abrir menú completo'}
+        className={`${item} relative text-muted hover:text-text`}>
         <Menu aria-hidden size={20} strokeWidth={1.75} />
+        {unread > 0 && <span aria-hidden className="absolute right-[calc(50%-14px)] top-2 size-2 rounded-full bg-accent" />}
         <span>Menú</span>
       </button>
     </nav>

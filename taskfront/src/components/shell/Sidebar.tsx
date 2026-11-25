@@ -1,6 +1,6 @@
 'use client'
 
-import { FolderKanban, House, ListChecks, Plus, Settings, Star, Users, type LucideIcon } from 'lucide-react'
+import { Bell, FolderKanban, House, ListChecks, Plus, Settings, Star, Users, type LucideIcon } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
@@ -12,7 +12,7 @@ import { progress } from '@/lib/projects'
 import { OrgSwitcher } from './OrgSwitcher'
 import { UserMenu } from './UserMenu'
 
-type Item = { href: string; label: string; icon: LucideIcon; exact?: boolean }
+type Item = { href: string; label: string; icon: LucideIcon; exact?: boolean; badge?: number }
 
 export type SidebarProject = { id: number; title: string; color: string; tasks_done: number; tasks_total: number; is_favorite: boolean }
 
@@ -24,6 +24,7 @@ export type SidebarProject = { id: number; title: string; color: string; tasks_d
 const MY_WORK: Item[] = [
   { href: '/inicio', label: 'Inicio', icon: House },
   { href: '/mis-tareas', label: 'Mis tareas', icon: ListChecks },
+  { href: '/notificaciones', label: 'Notificaciones', icon: Bell },
 ]
 const FOOTER: Item[] = [
   { href: '/integrantes', label: 'Integrantes', icon: Users },
@@ -47,6 +48,11 @@ function NavLink({ item, onNavigate }: { item: Item; onNavigate?: () => void }) 
     >
       <Icon aria-hidden size={16} strokeWidth={1.75} />
       {item.label}
+      {Boolean(item.badge) && (
+        <span className="ml-auto rounded-full bg-accent px-1.5 font-mono text-[10px] leading-4 text-on-accent">
+          {item.badge! > 99 ? '99+' : item.badge}<span className="sr-only"> sin leer</span>
+        </span>
+      )}
     </Link>
   )
 }
@@ -83,7 +89,7 @@ function ProjectLink({ project, onNavigate }: { project: SidebarProject; onNavig
   )
 }
 
-export function Sidebar({ organizations, activeOrgId, user, projects, moreProjects, onNavigate, onNewTask }: {
+export function Sidebar({ organizations, activeOrgId, user, projects, moreProjects, onNavigate, onNewTask, unread }: {
   organizations: { id: number; name: string; my_role: OrgRole }[]
   activeOrgId: number
   user: { full_name: string; email: string }
@@ -91,6 +97,8 @@ export function Sidebar({ organizations, activeOrgId, user, projects, moreProjec
   moreProjects: number
   onNavigate?: () => void
   onNewTask: () => void
+  /** Avisos sin leer (contador de Notificaciones). */
+  unread: number
 }) {
   return (
     <div className="flex h-full flex-col bg-sidebar px-3 pb-3 pt-4">
@@ -106,7 +114,11 @@ export function Sidebar({ organizations, activeOrgId, user, projects, moreProjec
 
       <nav aria-label="Principal" className="flex min-h-0 flex-1 flex-col">
         <Group label="Mi trabajo">
-          {MY_WORK.map((item) => <li key={item.href}><NavLink item={item} onNavigate={onNavigate} /></li>)}
+          {MY_WORK.map((item) => (
+            <li key={item.href}>
+              <NavLink item={item.href === '/notificaciones' ? { ...item, badge: unread } : item} onNavigate={onNavigate} />
+            </li>
+          ))}
         </Group>
         <Group label="Proyectos">
           {projects.map((p) => <li key={p.id}><ProjectLink project={p} onNavigate={onNavigate} /></li>)}

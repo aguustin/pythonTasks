@@ -22,6 +22,7 @@ from boards.access import (
     visible_boards,
 )
 from boards.filters import filter_tasks
+from notifications import services as notify
 from boards.models import Activity, Board, BoardMember, BoardRole, Column, Comment, Priority, ProjectFavorite, Task
 from boards.serializers import (
     AccessPreviewSerializer,
@@ -317,6 +318,7 @@ class BoardTaskListView(BoardScopedMixin, generics.ListCreateAPIView):
             task.save(update_fields=['completed_at'])
         task.assignees.set(assignees)
         services.log(self.board, self.request.user, Activity.Verb.TASK_CREATED, task=task, title=task.title)
+        notify.notify_assigned(task, assignees, self.request.user)
         serializer.instance = tasks_queryset().get(pk=task.pk)
 
 
@@ -360,7 +362,11 @@ class TaskViewSet(
         self._require(self._task, BoardRole.EDITOR)
         serializer = self.get_serializer(self._task, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
+        before = set(self._task.assignees.values_list('pk', flat=True))
         serializer.save()
+        if 'assignees' in serializer.validated_data:
+            added = [u for u in serializer.validated_data['assignees'] if u.pk not in before]
+            notify.notify_assigned(self._task, added, request.user)
         services.log(self._task.board, request.user, Activity.Verb.TASK_UPDATED, task=self._task,
                      title=self._task.title, fields=sorted(serializer.validated_data.keys()))
         return Response(self.get_serializer(tasks_queryset().get(pk=self._task.pk)).data)
@@ -408,6 +414,16 @@ class TaskViewSet(
             raise ValidationError('El proyecto no tiene columnas sin terminar.')
         services.move_task(task, target, 10**6, request.user)
         return self._moved(task)
+
+    @action(detail=True, methods=['get', 'post', 'delete'])
+    def follow(self, request, pk=None):
+        """Seguir una tarea (cualquiera con acceso): recibir sus comentarios y cuando se termina."""
+        task = self.get_object()
+        if request.method == 'POST':
+            task.followers.add(request.user)
+        elif request.method == 'DELETE':
+            task.followers.remove(request.user)
+        return Response({'following': task.followers.filter(pk=request.user.pk).exists()})
 
     @action(detail=True, methods=['post'])
     def move(self, request, pk=None):
@@ -466,12 +482,13 @@ class TaskCommentListView(generics.ListCreateAPIView):
             require_writable(self.task.board)
 
     def get_queryset(self):
-        return Comment.objects.filter(task=self.task).select_related('author')
+        return Comment.objects.filter(task=self.task).select_related('author').prefetch_related('mentions')
 
     def perform_create(self, serializer):
         comment = serializer.save(task=self.task, author=self.request.user)
         services.log(self.task.board, self.request.user, Activity.Verb.COMMENT_ADDED,
                      task=self.task, title=self.task.title, comment_id=comment.pk)
+        notify.notify_comment(comment, self.request.user, mentioned=list(comment.mentions.all()))
 
 
 class CommentViewSet(mixins.UpdateModelMixin, mixins.DestroyModelMixin, viewsets.GenericViewSet):
@@ -487,7 +504,10 @@ class CommentViewSet(mixins.UpdateModelMixin, mixins.DestroyModelMixin, viewsets
         require_writable(serializer.instance.task.board)
         if serializer.instance.author_id != self.request.user.pk:
             raise PermissionDenied('Solo el autor puede editar el comentario.')
-        serializer.save()
+        before = set(serializer.instance.mentions.values_list('pk', flat=True))
+        comment = serializer.save()
+        added = [u for u in comment.mentions.all() if u.pk not in before]
+        notify.notify_mentions(comment, added, self.request.user)
 
     def perform_destroy(self, instance):
         require_writable(instance.task.board)

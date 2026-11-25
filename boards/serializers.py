@@ -178,10 +178,14 @@ class TaskSummarySerializer(TaskSerializer):
 
 class CommentSerializer(serializers.ModelSerializer):
     author = UserPublicSerializer(read_only=True)
+    mentions = UserPublicSerializer(many=True, read_only=True)
+    mention_ids = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.all(), many=True, write_only=True, required=False, source='mentions'
+    )
 
     class Meta:
         model = Comment
-        fields = ['id', 'task', 'author', 'text', 'created_at', 'updated_at']
+        fields = ['id', 'task', 'author', 'text', 'mentions', 'mention_ids', 'created_at', 'updated_at']
         read_only_fields = ['id', 'task', 'author', 'created_at', 'updated_at']
 
     def validate_text(self, value):
@@ -189,6 +193,18 @@ class CommentSerializer(serializers.ModelSerializer):
         if not value:
             raise serializers.ValidationError('El comentario no puede estar vacío.')
         return value
+
+    def validate(self, attrs):
+        # Menciones válidas: personas con acceso al proyecto cuyo "@Nombre" está en el texto.
+        # Las demás se descartan en silencio (el texto queda igual).
+        if 'mentions' in attrs:
+            task = self.instance.task if self.instance else self.context['view'].task
+            text = attrs.get('text', self.instance.text if self.instance else '')
+            attrs['mentions'] = [
+                u for u in {u.pk: u for u in attrs['mentions']}.values()
+                if board_role(u, task.board) is not None and f'@{u.full_name}' in text
+            ]
+        return attrs
 
 
 class ActivitySerializer(serializers.ModelSerializer):
