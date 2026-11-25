@@ -187,7 +187,8 @@ class HomeAndOrgActivityTests(BaseAPITest):
 
     def test_member_counters_and_next_tasks(self):
         data = self.home(self.member)
-        self.assertEqual(data['my'], {'open': 4, 'overdue': 1, 'today': 1, 'week': 2})
+        # "Esta semana" no repite las de hoy (mismos grupos que Mis tareas).
+        self.assertEqual(data['my'], {'open': 4, 'overdue': 1, 'today': 1, 'week': 1})
         self.assertEqual([t['title'] for t in data['next_tasks']], ['Vencida', 'Hoy', 'Semana', 'Sin fecha'])
         self.assertIsNone(data['overview'])
 
@@ -257,3 +258,57 @@ class PeopleWithAccessTests(BaseAPITest):
         self.assertEqual(self.client.get(f'/api/v1/boards/{self.bid}/people/').status_code, 404)
         self.as_user(self.outsider)
         self.assertEqual(self.client.get(f'/api/v1/boards/{self.bid}/people/').status_code, 404)
+
+
+class CompleteReopenTests(BaseAPITest):
+    def setUp(self):
+        self.owner = self.make_user('owner')
+        self.viewer = self.make_user('viewer')
+        self.org = self.make_org(self.owner)
+        self.add_member(self.org, self.viewer)
+        self.board = self.make_board(self.owner, self.org, visibility='organization', organization_role='viewer')['id']
+        self.pend, self.curso, self.hecho = self.columns(self.board)
+        self.a = self.make_task(self.board, title='A', column=self.curso['id'])
+        self.b = self.make_task(self.board, title='B', column=self.curso['id'], assignee_ids=[self.viewer.id])
+
+    def post(self, task, action, user=None):
+        self.as_user(user or self.owner)
+        return self.client.post(f"/api/v1/tasks/{task['id']}/{action}/")
+
+    def test_complete_moves_to_first_done_column_and_reports_previous(self):
+        res = self.post(self.b, 'complete')
+        self.assertEqual(res.status_code, 200, res.data)
+        self.assertEqual(res.data['column'], self.hecho['id'])
+        self.assertIsNotNone(res.data['completed_at'])
+        self.assertEqual(res.data['previous'], {'column': self.curso['id'], 'position': 1})
+        # Deshacer = mover a la posición anterior: queda exactamente como estaba.
+        self.as_user(self.owner)
+        self.client.post(f"/api/v1/tasks/{self.b['id']}/move/", res.data['previous'], format='json')
+        order = list(Task.objects.filter(column_id=self.curso['id']).order_by('position').values_list('title', flat=True))
+        self.assertEqual(order, ['A', 'B'])
+        self.assertIsNone(Task.objects.get(pk=self.b['id']).completed_at)
+
+    def test_complete_is_idempotent_and_reopen_returns_to_first_open_column(self):
+        self.post(self.a, 'complete')
+        again = self.post(self.a, 'complete')
+        self.assertEqual((again.status_code, again.data['previous']), (200, None))
+        res = self.post(self.a, 'reopen')
+        self.assertEqual((res.data['column'], res.data['completed_at']), (self.pend['id'], None))
+        self.assertEqual(Activity.objects.filter(verb=Activity.Verb.TASK_MOVED, task_id=self.a['id']).count(), 2)
+
+    def test_viewer_only_completes_assigned_tasks(self):
+        self.assertEqual(self.post(self.a, 'complete', self.viewer).status_code, 403)
+        self.assertEqual(self.post(self.b, 'complete', self.viewer).status_code, 200)
+
+    def test_without_done_column_explains(self):
+        Task.objects.filter(board_id=self.board).update(column_id=self.pend['id'])
+        self.as_user(self.owner)
+        self.client.patch(f"/api/v1/boards/{self.board}/columns/{self.hecho['id']}/", {'is_done': False}, format='json')
+        res = self.post(self.a, 'complete')
+        self.assertEqual(res.status_code, 400)
+        self.assertIn('columna de terminadas', str(res.data))
+
+    def test_archived_project_is_read_only(self):
+        self.as_user(self.owner)
+        self.client.post(f'/api/v1/boards/{self.board}/archive/')
+        self.assertEqual(self.post(self.a, 'complete').status_code, 403)

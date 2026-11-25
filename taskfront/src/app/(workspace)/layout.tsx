@@ -21,6 +21,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
       activeOrgId={active.id}
       projects={projects.slice(0, SIDEBAR_PROJECTS).map(({ id, title, color, tasks_done, tasks_total, is_favorite }) => ({ id, title, color, tasks_done, tasks_total, is_favorite }))}
       moreProjects={Math.max(0, projects.length - SIDEBAR_PROJECTS)}
+      writableProjects={projects.filter((p) => p.my_role !== 'viewer').map(({ id, title }) => ({ id, title }))}
     >
       {children}
     </AppShell>

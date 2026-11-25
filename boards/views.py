@@ -326,7 +326,11 @@ class TaskViewSet(
     mixins.DestroyModelMixin,
     viewsets.GenericViewSet,
 ):
-    """GET/PATCH/DELETE /tasks/<id>/  ·  POST /tasks/<id>/move/"""
+    """
+    GET/PATCH/DELETE /tasks/<id>/  ·  POST /tasks/<id>/move/
+    POST /tasks/<id>/complete/  a la primera columna de terminadas (devuelve `previous` para deshacer)
+    POST /tasks/<id>/reopen/    a la primera columna sin terminar, al final
+    """
 
     serializer_class = TaskSerializer
     http_method_names = ['get', 'patch', 'delete', 'post']
@@ -367,16 +371,49 @@ class TaskViewSet(
         instance.delete()
         services.log(board, self.request.user, Activity.Verb.TASK_DELETED, title=title)
 
+    def _require_movable(self, task):
+        """Editores mueven cualquier tarea; un lector, solo las que tiene asignadas."""
+        if not has_role(self.role, BoardRole.EDITOR):
+            if not task.assignees.filter(pk=self.request.user.pk).exists():
+                raise PermissionDenied('Solo podés mover tareas que tenés asignadas.')
+
+    def _moved(self, task, **extra):
+        self._task = task
+        data = self.get_serializer(tasks_queryset().get(pk=task.pk)).data
+        return Response({**data, **extra})
+
+    @action(detail=True, methods=['post'])
+    def complete(self, request, pk=None):
+        """Marcar como hecha. `previous` permite deshacer moviéndola exactamente adonde estaba."""
+        task = self.get_object()
+        self._require_movable(task)
+        previous = {'column': task.column_id, 'position': task.position}
+        if task.column.is_done:
+            return self._moved(task, previous=None)
+        done = task.board.columns.filter(is_done=True).order_by('position').first()
+        if done is None:
+            raise ValidationError('El proyecto no tiene una columna de terminadas. Pedile al líder que marque una.')
+        services.move_task(task, done, 10**6, request.user)
+        return self._moved(task, previous=previous)
+
+    @action(detail=True, methods=['post'])
+    def reopen(self, request, pk=None):
+        """Reabrir: vuelve a la primera columna sin terminar, al final."""
+        task = self.get_object()
+        self._require_movable(task)
+        if not task.column.is_done:
+            return self._moved(task)
+        target = task.board.columns.filter(is_done=False).order_by('position').first()
+        if target is None:
+            raise ValidationError('El proyecto no tiene columnas sin terminar.')
+        services.move_task(task, target, 10**6, request.user)
+        return self._moved(task)
+
     @action(detail=True, methods=['post'])
     def move(self, request, pk=None):
-        """
-        Mover a otra columna o reordenar. Editores pueden mover cualquier tarea;
-        un lector solo puede mover las tareas que tiene asignadas.
-        """
+        """Mover a otra columna o reordenar (ver _require_movable)."""
         task = self.get_object()
-        if not has_role(self.role, BoardRole.EDITOR):
-            if not task.assignees.filter(pk=request.user.pk).exists():
-                raise PermissionDenied('Solo podés mover tareas que tenés asignadas.')
+        self._require_movable(task)
         serializer = TaskMoveSerializer(data=request.data, context={'task': task})
         serializer.is_valid(raise_exception=True)
         column = serializer.validated_data['column']
@@ -485,7 +522,8 @@ class HomeView(APIView):
             open=Count('id', distinct=True),
             overdue=Count('id', filter=Q(due_date__lt=today), distinct=True),
             today=Count('id', filter=Q(due_date=today), distinct=True),
-            week=Count('id', filter=Q(due_date__gte=today, due_date__lte=today + timedelta(days=7)), distinct=True),
+            # Mismos grupos que "Mis tareas": hoy va aparte, la semana es de mañana a 7 días.
+            week=Count('id', filter=Q(due_date__gt=today, due_date__lte=today + timedelta(days=7)), distinct=True),
         )
         next_tasks = (
             tasks_queryset().filter(pk__in=mine.values('pk'))

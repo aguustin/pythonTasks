@@ -1,6 +1,6 @@
 'use client'
 
-import { FolderKanban, House, ListChecks, Settings, Star, Users, type LucideIcon } from 'lucide-react'
+import { FolderKanban, House, ListChecks, Plus, Settings, Star, Users, type LucideIcon } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
@@ -83,13 +83,14 @@ function ProjectLink({ project, onNavigate }: { project: SidebarProject; onNavig
   )
 }
 
-export function Sidebar({ organizations, activeOrgId, user, projects, moreProjects, onNavigate }: {
+export function Sidebar({ organizations, activeOrgId, user, projects, moreProjects, onNavigate, onNewTask }: {
   organizations: { id: number; name: string; my_role: OrgRole }[]
   activeOrgId: number
   user: { full_name: string; email: string }
   projects: SidebarProject[]
   moreProjects: number
   onNavigate?: () => void
+  onNewTask: () => void
 }) {
   return (
     <div className="flex h-full flex-col bg-sidebar px-3 pb-3 pt-4">
@@ -97,6 +98,11 @@ export function Sidebar({ organizations, activeOrgId, user, projects, moreProjec
         <Brand size={24} editionClass="text-sidebar-edition" />
       </Link>
       <OrgSwitcher organizations={organizations} activeId={activeOrgId} onSwitch={onNavigate} />
+      <button type="button" onClick={onNewTask} aria-keyshortcuts="N"
+        className="mt-3 flex h-8 w-full items-center gap-2 rounded-[var(--radius-sm)] bg-accent px-2.5 text-[13px] font-semibold text-on-accent hover:bg-accent-hover">
+        <Plus aria-hidden size={16} /> Nueva tarea
+        <kbd className="ml-auto rounded border border-white/30 px-1.5 font-mono text-[10px] font-normal opacity-80">N</kbd>
+      </button>
 
       <nav aria-label="Principal" className="flex min-h-0 flex-1 flex-col">
         <Group label="Mi trabajo">

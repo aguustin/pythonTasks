@@ -167,12 +167,13 @@ class TaskSummarySerializer(TaskSerializer):
     """Para 'Mis tareas': agrega datos del tablero y la columna."""
 
     board_title = serializers.CharField(source='board.title', read_only=True)
+    board_color = serializers.CharField(source='board.color', read_only=True)
     organization = serializers.IntegerField(source='board.organization_id', read_only=True)
     column_name = serializers.CharField(source='column.name', read_only=True)
     is_done = serializers.BooleanField(source='column.is_done', read_only=True)
 
     class Meta(TaskSerializer.Meta):
-        fields = TaskSerializer.Meta.fields + ['board_title', 'organization', 'column_name', 'is_done']
+        fields = TaskSerializer.Meta.fields + ['board_title', 'board_color', 'organization', 'column_name', 'is_done']
 
 
 class CommentSerializer(serializers.ModelSerializer):

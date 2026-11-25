@@ -7,7 +7,7 @@ import { failure, type ActionResult } from '@/lib/forms'
 import type { BoardRole, Project, ProjectStatus } from '@/lib/projects'
 import type { Column, Comment, Priority, Task } from '@/lib/tasks'
 import { PROJECT_COLORS } from '@/lib/palette'
-import { apiAction } from '@/lib/server/dal'
+import { apiAction, requireUser } from '@/lib/server/dal'
 import { requireActiveOrganization } from '@/lib/server/organization'
 
 /**
@@ -319,4 +319,58 @@ export async function deleteColumn(boardId: number, columnId: number, moveTo: nu
   const res = await apiAction(`/boards/${boardId}/columns/${columnId}/${moveTo ? `?move_to=${moveTo}` : ''}`, 'DELETE')
   if (!res.ok) return failure(res)
   return { ok: true, data: undefined }
+}
+
+// ── Mi trabajo (Inicio y Mis tareas) ─────────────────────────────────────────
+
+export type Completed = Task & { previous: { column: number; position: number } | null }
+
+/** Marcar como hecha. `previous` permite deshacer moviéndola exactamente adonde estaba. */
+export async function completeTask(taskId: number): Promise<ActionResult<Completed>> {
+  if (!validId(taskId)) return { ok: false, error: 'Tarea inválida.' }
+  const res = await apiAction<Completed>(`/tasks/${taskId}/complete/`, 'POST')
+  if (!res.ok && res.status === 404) return { ok: false, error: GONE }
+  if (!res.ok) return failure(res)
+  return { ok: true, data: res.data }
+}
+
+export async function reopenTask(taskId: number): Promise<ActionResult<Task>> {
+  if (!validId(taskId)) return { ok: false, error: 'Tarea inválida.' }
+  const res = await apiAction<Task>(`/tasks/${taskId}/reopen/`, 'POST')
+  if (!res.ok && res.status === 404) return { ok: false, error: GONE }
+  if (!res.ok) return failure(res)
+  return { ok: true, data: res.data }
+}
+
+/** Columnas de un proyecto, para el diálogo global "Nueva tarea". */
+export async function getProjectColumns(boardId: number): Promise<ActionResult<Column[]>> {
+  if (!validId(boardId)) return { ok: false, error: 'Proyecto inválido.' }
+  const res = await apiAction<Project>(`/boards/${boardId}/`, 'GET')
+  if (!res.ok) return failure(res)
+  return { ok: true, data: [...(res.data.columns ?? [])].sort((a, b) => a.position - b.position) }
+}
+
+export type NewTaskInput = {
+  boardId: number
+  columnId: number | null
+  title: string
+  priority: Priority
+  due_date: string | null
+  assignToMe: boolean
+}
+
+/** F7 — "+ Nueva tarea" global: proyecto → título → opcionales. */
+export async function createTaskWithDetails(input: NewTaskInput): Promise<ActionResult<Task>> {
+  const title = input.title.trim()
+  if (!validId(input.boardId)) return { ok: false, error: 'Elegí un proyecto.', fields: { board: 'Elegí un proyecto.' } }
+  if (!title) return { ok: false, error: 'Escribí un título para la tarea.', fields: { title: 'Este campo es obligatorio.' } }
+  if (!PRIORITY_VALUES.includes(input.priority)) return { ok: false, error: 'Prioridad inválida.' }
+  if (!isDate(input.due_date || null)) return { ok: false, error: 'Fecha inválida.' }
+  const body: Record<string, unknown> = { title: title.slice(0, 200), priority: input.priority, due_date: input.due_date || null }
+  if (input.columnId !== null && validId(input.columnId)) body.column = input.columnId
+  if (input.assignToMe) body.assignee_ids = [(await requireUser()).id] // de la sesión, no del cliente
+  const res = await apiAction<Task>(`/boards/${input.boardId}/tasks/`, 'POST', body)
+  if (!res.ok) return failure(res)
+  revalidatePath('/', 'layout') // avance en el menú lateral, Inicio y Mis tareas
+  return { ok: true, data: res.data }
 }

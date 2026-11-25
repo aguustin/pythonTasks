@@ -8,14 +8,21 @@ import { Brand } from '@/components/brand/Brand'
 import { ToastProvider } from '@/components/ui/Toast'
 import type { OrgRole } from '@/lib/labels'
 
+import { NewTaskDialog, type WritableProject } from './NewTaskDialog'
 import { Sidebar, type SidebarProject } from './Sidebar'
+
+/** Si el foco está en un campo de texto, las teclas son para escribir (no atajos). */
+const typing = (el: Element | null) =>
+  el instanceof HTMLElement && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName))
 
 /**
  * Marco de la aplicación. Escritorio (≥ 1024 px): menú lateral fijo de 236 px y cada página
  * con su propia barra (PageBar). Tablet y celular: barra superior compacta y menú en cajón.
  */
-export function AppShell({ user, organizations, activeOrgId, projects, moreProjects, children }: {
+export function AppShell({ user, organizations, activeOrgId, projects, moreProjects, writableProjects, children }: {
   user: { full_name: string; email: string }
+  /** Proyectos donde la persona puede crear tareas (para "+ Nueva tarea"). */
+  writableProjects: WritableProject[]
   organizations: { id: number; name: string; my_role: OrgRole }[]
   activeOrgId: number
   projects: SidebarProject[]
@@ -35,7 +42,21 @@ export function AppShell({ user, organizations, activeOrgId, projects, moreProje
     return () => document.removeEventListener('keydown', onKey)
   }, [drawer])
 
-  const sidebarProps = { organizations, activeOrgId, user, projects, moreProjects }
+  // "+ Nueva tarea" global: botón del menú o tecla N (fuera de campos de texto y diálogos).
+  const [newTask, setNewTask] = useState(false)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() !== 'n' || e.ctrlKey || e.metaKey || e.altKey || e.repeat || e.defaultPrevented) return
+      if (typing(document.activeElement) || document.querySelector('dialog[open], [role=menu]')) return
+      e.preventDefault()
+      setNewTask(true)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [])
+  const currentProject = Number(/^\/proyectos\/(\d+)/.exec(pathname)?.[1]) || null
+
+  const sidebarProps = { organizations, activeOrgId, user, projects, moreProjects, onNewTask: () => { setDrawer(false); setNewTask(true) } }
 
   return (
     <ToastProvider>
@@ -74,6 +95,9 @@ export function AppShell({ user, organizations, activeOrgId, projects, moreProje
             {children}
           </main>
         </div>
+        {newTask && (
+          <NewTaskDialog open onClose={() => setNewTask(false)} projects={writableProjects} defaultProjectId={currentProject} />
+        )}
       </div>
     </ToastProvider>
   )
