@@ -11,6 +11,7 @@ import { BUCKETS, bucketOf, DUE_PARAMS, groupMyTasks, type DueParam } from '@/li
 import { todayISO } from '@/lib/projects'
 import { getActiveOrganization, getOrganizations } from '@/lib/server/dal'
 import { getMyTasks, MY_TASKS_LIMIT } from '@/lib/server/mywork'
+import { getTeams } from '@/lib/server/organization'
 import type { Priority } from '@/lib/tasks'
 
 export const metadata: Metadata = { title: 'Mis tareas' }
@@ -28,7 +29,11 @@ export default async function MyTasksPage({ searchParams }: PageProps<'/mis-tare
   const orgParam = one(sp.organizacion)
   const organization = orgParam === 'all' ? 'all' : organizations.find((o) => String(o.id) === orgParam)?.id ?? active!.id
   const withDone = one(sp.terminadas) === '1'
-  const { tasks, total } = await getMyTasks(organization, withDone)
+  // Equipos: por organización y nunca para invitados (no los ven).
+  const orgRole = organization === 'all' ? null : organizations.find((o) => o.id === organization)?.my_role
+  const teams = orgRole && orgRole !== 'guest' && organization !== 'all' ? await getTeams(organization) : []
+  const team = teams.find((t) => String(t.id) === one(sp.equipo))?.id ?? null
+  const { tasks, total } = await getMyTasks(organization, withDone, team)
 
   const today = todayISO()
   const due = DUE_PARAMS.includes(one(sp.vence) as DueParam) ? (one(sp.vence) as DueParam) : null
@@ -63,7 +68,7 @@ export default async function MyTasksPage({ searchParams }: PageProps<'/mis-tare
         activeTab={calendar ? 'calendario' : 'lista'} />
       <PageBody className={calendar ? 'max-w-6xl' : 'max-w-4xl'}>
         <MyTasksFilters organizations={organizations.map(({ id, name }) => ({ id, name }))} activeOrgId={active!.id}
-          projects={projects} groupLabel={due ? BUCKETS.find((b) => b.key === due)!.label : null} />
+          projects={projects} teams={teams.map(({ id, name }) => ({ id, name }))} groupLabel={due ? BUCKETS.find((b) => b.key === due)!.label : null} />
 
         {calendar ? (
           <MyTasksCalendar tasks={shown} today={today} />

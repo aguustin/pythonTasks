@@ -42,6 +42,7 @@ from boards.serializers import (
     TaskSummarySerializer,
 )
 from workspaces.access import require_can_create_projects, require_membership
+from workspaces.models import Team
 
 # De más urgente a menos urgente (para ordenar "Mis tareas" e Inicio).
 PRIORITY_ORDER = [Priority.URGENT, Priority.HIGH, Priority.MEDIUM, Priority.LOW]
@@ -62,6 +63,21 @@ def with_progress(boards, today=None):
             'tasks', filter=Q(tasks__due_date__lt=today, tasks__column__is_done=False), distinct=True
         ),
     )
+
+
+def filter_by_team(request, org_pk, boards):
+    """
+    ?team=<id>: solo los proyectos a los que ese equipo tiene acceso (filtro de Mis tareas,
+    Inicio y su actividad). El equipo tiene que ser de la organización; los invitados no ven equipos.
+    """
+    team = request.query_params.get('team')
+    if not team:
+        return boards
+    if require_membership(request.user, org_pk).is_guest:
+        raise PermissionDenied('Las personas invitadas no ven los equipos.')
+    if not team.isdigit() or not Team.objects.filter(pk=int(team), organization_id=org_pk).exists():
+        raise ValidationError({'team': 'Equipo inválido.'})
+    return boards.filter(team_access__team_id=int(team))
 
 
 def tasks_queryset():
@@ -535,7 +551,8 @@ class TaskViewSet(
 class MyTasksView(generics.ListAPIView):
     """
     GET /my-tasks/ — tareas asignadas al usuario en todos sus tableros.
-    Por defecto solo las abiertas (?status=all para todas). Filtro extra: ?organization=<id>
+    Por defecto solo las abiertas (?status=all para todas). Filtros extra: ?organization=<id>
+    y, dentro de ella, ?team=<id> (proyectos a los que el equipo tiene acceso).
     """
 
     serializer_class = TaskSummarySerializer
@@ -550,6 +567,10 @@ class MyTasksView(generics.ListAPIView):
         org = params.get('organization')
         if org:
             qs = qs.filter(board__organization_id=org)
+            if params.get('team'):
+                qs = qs.filter(board__in=filter_by_team(self.request, org, Board.objects.all()))
+        elif params.get('team'):
+            raise ValidationError({'team': 'El filtro por equipo necesita una organización.'})
         params.pop('assignee', None)
         return (
             filter_tasks(qs, params, user)
@@ -688,7 +709,7 @@ class HomeView(APIView):
         user = request.user
         membership = require_membership(user, org_pk)
         today = timezone.localdate()
-        boards = visible_boards(user).filter(organization_id=org_pk, archived_at__isnull=True)
+        boards = filter_by_team(request, org_pk, visible_boards(user).filter(organization_id=org_pk, archived_at__isnull=True))
 
         mine = Task.objects.filter(board__in=boards, assignees=user, column__is_done=False)
         my = mine.aggregate(
@@ -754,5 +775,5 @@ class OrganizationActivityView(generics.ListAPIView):
     def get_queryset(self):
         org_pk = self.kwargs['org_pk']
         require_membership(self.request.user, org_pk)
-        boards = visible_boards(self.request.user).filter(organization_id=org_pk)
+        boards = filter_by_team(self.request, org_pk, visible_boards(self.request.user).filter(organization_id=org_pk))
         return Activity.objects.filter(board__in=boards).select_related('actor', 'board')

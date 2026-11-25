@@ -3,7 +3,7 @@ from rest_framework import serializers
 
 from accounts.models import User
 from accounts.serializers import UserPublicSerializer
-from boards.access import board_role
+from boards.access import RoleCache, board_role, has_role
 from boards.models import Activity, Board, BoardMember, BoardRole, BoardTeam, ChecklistItem, Column, Comment, Label, Task
 from workspaces.models import Membership, Team
 
@@ -251,9 +251,20 @@ class TaskSummarySerializer(TaskSerializer):
     organization = serializers.IntegerField(source='board.organization_id', read_only=True)
     column_name = serializers.CharField(source='column.name', read_only=True)
     is_done = serializers.BooleanField(source='column.is_done', read_only=True)
+    # Si quien pide puede editar la tarea (editor o más, proyecto no archivado): para ofrecer cambiar la fecha.
+    can_edit = serializers.SerializerMethodField()
 
     class Meta(TaskSerializer.Meta):
-        fields = TaskSerializer.Meta.fields + ['board_title', 'board_color', 'organization', 'column_name', 'is_done']
+        fields = TaskSerializer.Meta.fields + ['board_title', 'board_color', 'organization', 'column_name', 'is_done', 'can_edit']
+
+    def get_can_edit(self, task):
+        request = self.context.get('request')
+        if request is None or task.board.archived_at is not None:
+            return False
+        cache = self.context.get('role_cache')
+        if cache is None:
+            cache = self.context['role_cache'] = RoleCache(request.user)
+        return has_role(cache.role(task.board), BoardRole.EDITOR)
 
 
 class CommentSerializer(serializers.ModelSerializer):

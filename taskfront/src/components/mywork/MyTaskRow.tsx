@@ -5,10 +5,13 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
-import { completeTask, moveTask, reopenTask } from '@/app/(workspace)/proyectos/actions'
+import { completeTask, moveTask, reopenTask, updateTask } from '@/app/(workspace)/proyectos/actions'
 import { DueTag, PriorityTag } from '@/components/board/TaskCard'
 import { useToast } from '@/components/ui/Toast'
-import { taskLink, type MyTask } from '@/lib/mywork'
+import { rescheduled, taskLink, type MyTask } from '@/lib/mywork'
+import { dueLabel } from '@/lib/tasks'
+
+import { DueMenu } from './DueMenu'
 import { colorVars } from '@/lib/palette'
 
 const NETWORK = 'No se pudo conectar. Revisá tu conexión e intentá de nuevo.'
@@ -49,6 +52,31 @@ export function MyTaskRow({ task, today, orgName }: { task: MyTask; today: strin
     router.refresh()
   }
 
+  // Cambiar el vencimiento (editores): se revierte bien volviendo a las fechas anteriores, por eso hay "Deshacer".
+  const [dueBusy, setDueBusy] = useState(false)
+  const changeDue = async (due: string | null) => {
+    const before = { due_date: task.due_date, start_date: task.start_date }
+    const next = rescheduled(task, due)
+    setDueBusy(true)
+    const res = await updateTask(task.id, next).catch(() => ({ ok: false as const, error: NETWORK }))
+    setDueBusy(false)
+    if (!res.ok) {
+      toast({ tone: 'error', message: `No se pudo cambiar la fecha. ${res.error}` })
+      return
+    }
+    toast({
+      tone: 'success',
+      message: due ? `«${task.title}» vence ${dueLabel(due, today).toLowerCase()}.` : `«${task.title}» quedó sin fecha.`,
+      undo: async () => {
+        const back = await updateTask(task.id, 'start_date' in next ? before : { due_date: before.due_date })
+          .catch(() => ({ ok: false as const, error: NETWORK }))
+        if (back.ok) router.refresh()
+        else toast({ tone: 'error', message: `No se pudo deshacer. ${back.error}` })
+      },
+    })
+    router.refresh()
+  }
+
   const reopen = async () => {
     setState('busy')
     const res = await reopenTask(task.id).catch(() => ({ ok: false as const, error: NETWORK }))
@@ -85,7 +113,9 @@ export function MyTaskRow({ task, today, orgName }: { task: MyTask; today: strin
           </span>
           {orgName && <span className="truncate">{orgName}</span>}
           <PriorityTag priority={task.priority} />
-          <DueTag due={task.due_date} done={done} today={today} />
+          {task.can_edit && !done
+            ? <DueMenu title={task.title} due={task.due_date} done={done} today={today} disabled={dueBusy || state === 'busy'} onChange={changeDue} />
+            : <DueTag due={task.due_date} done={done} today={today} />}
         </div>
       </div>
     </li>

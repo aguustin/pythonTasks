@@ -14,6 +14,32 @@ export type MyTask = Task & {
   organization: number
   column_name: string
   is_done: boolean
+  /** Puede editarla (editor o más): se le ofrece cambiar la fecha desde Mi trabajo. */
+  can_edit?: boolean
+}
+
+/** Suma días a una fecha AAAA-MM-DD (sin zona horaria: es una fecha de calendario). */
+export function addDays(iso: string, days: number): string {
+  const d = new Date(`${iso}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
+/** Próximo lunes (si hoy es lunes, el de la semana que viene). */
+export function nextMonday(today: string): string {
+  const weekday = new Date(`${today}T12:00:00Z`).getUTCDay() // 0 = domingo
+  return addDays(today, ((8 - weekday) % 7) || 7)
+}
+
+/**
+ * Nuevas fechas al reprogramar: si la tarea tiene inicio, se corre igual que el vencimiento
+ * (mantiene la duración) para que el inicio nunca quede después del vencimiento.
+ */
+export function rescheduled(task: Pick<MyTask, 'start_date' | 'due_date'>, due: string | null): { due_date: string | null; start_date?: string | null } {
+  if (!due || !task.start_date) return { due_date: due }
+  if (!task.due_date) return due < task.start_date ? { due_date: due, start_date: due } : { due_date: due }
+  const gap = Math.round((Date.parse(`${task.due_date}T12:00:00Z`) - Date.parse(`${task.start_date}T12:00:00Z`)) / 86_400_000)
+  return { due_date: due, start_date: addDays(due, -gap) }
 }
 
 export type Bucket = 'overdue' | 'today' | 'week' | 'later' | 'none' | 'done'

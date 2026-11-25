@@ -28,7 +28,15 @@ class TeamSerializer(serializers.ModelSerializer):
         return UserPublicSerializer([m.user for m in team.members.all()], many=True).data
 
     def get_projects(self, team):
-        return [{'id': a.board_id, 'title': a.board.title, 'role': a.role} for a in team.board_access.all()]
+        # Solo los proyectos que quien mira ve: un equipo no revela títulos de proyectos privados.
+        visible = self.context.get('visible_board_ids')
+        if visible is None:
+            from boards.access import visible_boards
+            request = self.context['request']
+            visible = set(visible_boards(request.user).filter(organization_id=team.organization_id).values_list('id', flat=True))
+            self.context['visible_board_ids'] = visible
+        return [{'id': a.board_id, 'title': a.board.title, 'role': a.role}
+                for a in team.board_access.all() if a.board_id in visible]
 
     def validate_name(self, value):
         value = ' '.join(value.split())

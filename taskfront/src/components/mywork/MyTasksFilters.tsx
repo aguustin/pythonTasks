@@ -24,10 +24,12 @@ function FilterSelect({ label, value, active, onChange, children }: {
 }
 
 /** Filtros de Mis tareas (S2). Viven en la URL: los contadores de Inicio llegan ya filtrados. */
-export function MyTasksFilters({ organizations, activeOrgId, projects, groupLabel }: {
+export function MyTasksFilters({ organizations, activeOrgId, projects, teams, groupLabel }: {
   organizations: { id: number; name: string }[]
   activeOrgId: number
   projects: { id: number; title: string }[]
+  /** Equipos de la organización elegida (vacío con "Todas" o para invitados). */
+  teams: { id: number; name: string }[]
   /** Grupo pedido desde Inicio (?vence=), para mostrarlo como filtro quitable. */
   groupLabel: string | null
 }) {
@@ -40,16 +42,18 @@ export function MyTasksFilters({ organizations, activeOrgId, projects, groupLabe
     const next = new URLSearchParams(params.toString())
     if (value) next.set(key, value)
     else next.delete(key)
-    if (key === 'organizacion') next.delete('proyecto') // los proyectos dependen de la organización
+    if (key === 'organizacion') { next.delete('proyecto'); next.delete('equipo') } // dependen de la organización
+    if (key === 'equipo') next.delete('proyecto') // el proyecto elegido puede no ser del equipo
     const qs = next.toString()
     startTransition(() => router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false }))
   }
 
   const org = params.get('organizacion') ?? ''
   const project = params.get('proyecto') ?? ''
+  const team = teams.some((t) => String(t.id) === params.get('equipo')) ? params.get('equipo')! : ''
   const priority = params.get('prioridad') ?? ''
   const withDone = params.get('terminadas') === '1'
-  const any = Boolean(project || priority || withDone || groupLabel || (org && org !== String(activeOrgId)))
+  const any = Boolean(team || project || priority || withDone || groupLabel || (org && org !== String(activeOrgId)))
 
   return (
     <div role="search" aria-label="Filtrar mis tareas" aria-busy={pending} className="mb-4 flex flex-wrap items-center gap-2">
@@ -57,6 +61,12 @@ export function MyTasksFilters({ organizations, activeOrgId, projects, groupLabe
         <FilterSelect label="Organización" value={org || String(activeOrgId)} active={org === 'all'} onChange={(v) => set('organizacion', v === String(activeOrgId) ? '' : v)}>
           {organizations.map((o) => <option key={o.id} value={String(o.id)}>{o.name}</option>)}
           <option value="all">Todas las organizaciones</option>
+        </FilterSelect>
+      )}
+      {teams.length > 0 && (
+        <FilterSelect label="Equipo" value={team} active={Boolean(team)} onChange={(v) => set('equipo', v)}>
+          <option value="">Equipo: todos</option>
+          {teams.map((t) => <option key={t.id} value={String(t.id)}>{t.name}</option>)}
         </FilterSelect>
       )}
       <FilterSelect label="Proyecto" value={project} active={Boolean(project)} onChange={(v) => set('proyecto', v)}>

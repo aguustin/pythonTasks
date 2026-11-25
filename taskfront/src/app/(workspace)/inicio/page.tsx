@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 import { MyTaskRow } from '@/components/mywork/MyTaskRow'
+import { TeamFilter } from '@/components/mywork/TeamFilter'
 import { ColorSquare, OverdueChip, ProgressBar, ProjectStatusBadge } from '@/components/projects/ProjectBits'
 import { Avatar } from '@/components/ui/Badges'
 import { Card, PageBar, PageBody } from '@/components/ui/PageHeader'
@@ -10,6 +11,7 @@ import { activityText, stamp } from '@/lib/activity'
 import { todayISO } from '@/lib/projects'
 import { getActiveOrganization, requireUser } from '@/lib/server/dal'
 import { getHome, getOrganizationActivity } from '@/lib/server/mywork'
+import { getTeams } from '@/lib/server/organization'
 import { getProjects } from '@/lib/server/projects'
 
 export const metadata: Metadata = { title: 'Inicio' }
@@ -20,10 +22,17 @@ const MY_PROJECTS = 6
  * S1 — Inicio: qué requiere atención en 5 segundos. Cada número lleva a una acción.
  * Las cifras usan los mismos grupos que Mis tareas, y "Lo próximo" son sus primeras tareas.
  */
-export default async function HomePage() {
+export default async function HomePage({ searchParams }: { searchParams: Promise<{ equipo?: string }> }) {
   const [user, org] = await Promise.all([requireUser(), getActiveOrganization()])
-  const [home, projects] = await Promise.all([getHome(org!.id), getProjects(org!.id)])
-  const activity = home.overview ? await getOrganizationActivity(org!.id) : []
+  // Filtro por equipo (?equipo=): solo los proyectos a los que ese equipo tiene acceso. Los invitados no ven equipos.
+  const teams = org!.my_role === 'guest' ? [] : await getTeams(org!.id)
+  const { equipo } = await searchParams
+  const team = teams.find((t) => String(t.id) === equipo) ?? null
+  const teamId = team?.id ?? null
+  const withTeam = (href: string) => (team ? `${href}${href.includes('?') ? '&' : '?'}equipo=${team.id}` : href)
+  const [home, allProjects] = await Promise.all([getHome(org!.id, teamId), getProjects(org!.id)])
+  const projects = team ? allProjects.filter((p) => team.projects.some((tp) => tp.id === p.id)) : allProjects
+  const activity = home.overview ? await getOrganizationActivity(org!.id, 15, teamId) : []
   const today = todayISO()
 
   const counters = [
@@ -34,7 +43,7 @@ export default async function HomePage() {
 
   const nextTasks = (
     <Card title="Lo próximo" description="Tus tareas más urgentes, por vencimiento y prioridad." flush
-      aside={<Link href="/mis-tareas" className="shrink-0 text-[13px] font-semibold text-accent-text hover:underline">Ver todas</Link>}>
+      aside={<Link href={withTeam('/mis-tareas')} className="shrink-0 text-[13px] font-semibold text-accent-text hover:underline">Ver todas</Link>}>
       {home.next_tasks.length === 0 ? (
         <div className="flex items-center gap-3 px-5 py-6 text-[13px] text-muted">
           <CircleCheckBig aria-hidden size={18} className="text-success" /> Estás al día: no tenés tareas abiertas en {org!.name}.
@@ -72,11 +81,12 @@ export default async function HomePage() {
 
   return (
     <>
-      <PageBar title="Inicio" meta={`Hola, ${user.full_name.split(' ')[0]} · ${org!.name}`} />
+      <PageBar title="Inicio" meta={`Hola, ${user.full_name.split(' ')[0]} · ${org!.name}`}
+        actions={teams.length > 0 ? <TeamFilter teams={teams.map(({ id, name }) => ({ id, name }))} value={teamId} /> : undefined} />
       <PageBody className="max-w-6xl space-y-5">
         <nav aria-label="Tus tareas por vencimiento" className="grid grid-cols-3 gap-3">
           {counters.map((c) => (
-            <Link key={c.key} href={`/mis-tareas?vence=${c.key}`} data-counter={c.key}
+            <Link key={c.key} href={withTeam(`/mis-tareas?vence=${c.key}`)} data-counter={c.key}
               className="rounded-[var(--radius-md)] border border-border bg-surface px-4 py-3 hover:border-border-strong">
               <span className="eyebrow block">{c.label}</span>
               <span className={`mt-1 block font-[family-name:var(--font-display)] text-3xl font-semibold leading-none ${c.tone}`}>{c.value}</span>
@@ -85,7 +95,7 @@ export default async function HomePage() {
         </nav>
         <p className="-mt-2 text-[12px] text-subtle">
           {home.my.open} {home.my.open === 1 ? 'tarea abierta' : 'tareas abiertas'} en total ·{' '}
-          <Link href="/mis-tareas" className="text-accent-text underline underline-offset-2 hover:no-underline">Ir a Mis tareas</Link>
+          <Link href={withTeam('/mis-tareas')} className="text-accent-text underline underline-offset-2 hover:no-underline">Ir a Mis tareas</Link>
         </p>
 
         {home.overview ? (

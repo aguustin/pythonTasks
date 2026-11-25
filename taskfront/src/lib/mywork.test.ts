@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { bucketOf, groupMyTasks, type MyTask } from './mywork.ts'
+import { addDays, bucketOf, groupMyTasks, nextMonday, rescheduled, type MyTask } from './mywork.ts'
 
 const today = '2026-11-25'
 const t = (id: number, due: string | null, extra: Partial<MyTask> = {}) => ({
@@ -27,4 +27,13 @@ test('agrupa en orden fijo, omite vacíos y ordena por vencimiento y prioridad',
   assert.deepEqual(groups.map((g) => [g.label, g.tasks.map((x) => x.id)]), [
     ['Vencidas', [4]], ['Hoy', [3, 2]], ['Sin fecha', [1]], ['Terminadas', [5]],
   ])
+})
+
+test('reprogramar: días, próximo lunes y el inicio se corre con el vencimiento', () => {
+  assert.equal(addDays('2026-02-28', 1), '2026-03-01')
+  assert.equal(nextMonday('2026-11-25'), '2026-11-30') // miércoles
+  assert.equal(nextMonday('2026-11-30'), '2026-12-07') // lunes → el siguiente
+  assert.deepEqual(rescheduled({ start_date: '2026-11-20', due_date: '2026-11-22' }, '2026-11-30'), { due_date: '2026-11-30', start_date: '2026-11-28' })
+  assert.deepEqual(rescheduled({ start_date: '2026-12-10', due_date: null }, '2026-12-01'), { due_date: '2026-12-01', start_date: '2026-12-01' })
+  assert.deepEqual(rescheduled({ start_date: '2026-11-20', due_date: '2026-11-22' }, null), { due_date: null })
 })

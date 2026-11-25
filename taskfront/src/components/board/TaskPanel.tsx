@@ -17,6 +17,7 @@ import { AssigneePicker } from './AssigneePicker'
 import { Checklist } from './Checklist'
 import { LabelPicker } from './Labels'
 import { Comments } from './Comments'
+import { DescriptionEditor } from './DescriptionEditor'
 import { PriorityTag } from './TaskCard'
 
 export type TaskChanges = Partial<{ title: string; description: string; priority: Priority; start_date: string | null; due_date: string | null; assignee_ids: number[]; repeat: Repeat; label_ids: number[] }>
@@ -60,7 +61,6 @@ export function TaskPanel({ projectId, task, missing, detail, labels, onCreateLa
   const [status, setStatus] = useState<Status>('idle')
   const [pending, setPending] = useState<Partial<Task>>({})
   const [title, setTitle] = useState<string | null>(null)
-  const [description, setDescription] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   // Seguir la tarea: se toma del detalle y se cambia al momento (vuelve atrás si la API falla).
@@ -122,12 +122,6 @@ export function TaskPanel({ projectId, task, missing, detail, labels, onCreateLa
     if (!clean || clean === task.title) return setTitle(null)
     await save({ title: clean }, { title: clean })
     setTitle(null)
-  }
-  const saveDescription = async () => {
-    if (description === null || !task) return
-    if (description === task.description) return setDescription(null)
-    await save({ description }, { description })
-    setDescription(null)
   }
 
   const copyLink = async () => {
@@ -306,27 +300,8 @@ export function TaskPanel({ projectId, task, missing, detail, labels, onCreateLa
               )}
             </dl>
 
-            <div>
-              {canEdit ? (
-                <>
-                  <label htmlFor="task-description" className="eyebrow">Descripción</label>
-                  <textarea id="task-description" value={description ?? shown.description} maxLength={10000}
-                    placeholder="Agregá detalles, pasos o enlaces…"
-                    onChange={(e) => setDescription(e.target.value)}
-                    onBlur={() => void saveDescription()}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Escape' && description !== null) { e.preventDefault(); e.stopPropagation(); setDescription(null) }
-                      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); e.currentTarget.blur() }
-                    }}
-                    className="mt-2 min-h-24 w-full resize-y rounded-[var(--radius-field)] border border-input-border bg-field px-3 py-2 text-[13px] leading-relaxed text-text outline-none [field-sizing:content] placeholder:text-subtle hover:border-muted focus-visible:border-focus focus-visible:shadow-[0_0_0_3px_var(--accent-soft)]" />
-                </>
-              ) : (
-                <>
-                  <h3 className="eyebrow">Descripción</h3>
-                  <p className="mt-2 whitespace-pre-wrap text-[13px] leading-relaxed text-text">{shown.description || <span className="text-subtle">Sin descripción.</span>}</p>
-                </>
-              )}
-            </div>
+            <DescriptionEditor key={shown.id} value={shown.description} canEdit={canEdit}
+              onSave={async (d) => { await save({ description: d }, { description: d }) }} />
 
             <Checklist key={`cl-${shown.id}`} taskId={shown.id} initial={detail?.checklist ?? EMPTY_CHECKLIST} loading={!detail}
               canEdit={canEdit} canToggle={canMove} onCounts={onChecklistCounts} />

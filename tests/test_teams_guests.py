@@ -130,3 +130,38 @@ class TeamAccessTests(BaseAPITest):
         self.as_user(self.owner)
         self.client.delete(f'/api/v1/organizations/{self.org.id}/members/{membership.id}/')
         self.assertFalse(TeamMember.objects.filter(user=self.ana).exists())
+
+
+class TeamFilterTests(BaseAPITest):
+    """Filtro por equipo (Mis tareas e Inicio) y que la lista de equipos no revele proyectos privados."""
+
+    def setUp(self):
+        self.owner = self.make_user('owner')
+        self.bob = self.make_user('bob')
+        self.org = self.make_org(self.owner)
+        self.add_member(self.org, self.bob)
+        self.team_board = self.make_board(self.owner, self.org, visibility='organization', title='Del equipo')['id']
+        self.other = self.make_board(self.owner, self.org, visibility='organization', title='Otro')['id']
+        self.secret = self.make_board(self.owner, self.org, visibility='private', title='Secreto')['id']
+        self.as_user(self.owner)
+        self.team = self.client.post(f'/api/v1/organizations/{self.org.id}/teams/', {'name': 'Depósito'}, format='json').data['id']
+        for board in (self.team_board, self.secret):
+            self.client.post(f'/api/v1/boards/{board}/teams/', {'team_id': self.team, 'role': 'viewer'}, format='json')
+        for board in (self.team_board, self.other):
+            self.make_task(board, title=f'T{board}', assignee_ids=[self.owner.id])
+
+    def test_my_tasks_and_home_filtered_by_team_projects(self):
+        self.as_user(self.owner)
+        res = self.client.get(f'/api/v1/my-tasks/?organization={self.org.id}&team={self.team}')
+        self.assertEqual([t['board'] for t in res.data['results']], [self.team_board])
+        home = self.client.get(f'/api/v1/organizations/{self.org.id}/home/?team={self.team}').data
+        self.assertEqual(home['my']['open'], 1)
+        self.assertEqual({p['id'] for p in home['overview']['projects']}, {self.team_board, self.secret})
+        other_org = self.make_org(self.owner)
+        self.as_user(self.owner)
+        self.assertEqual(self.client.get(f'/api/v1/organizations/{other_org.id}/home/?team={self.team}').status_code, 400)
+
+    def test_team_list_hides_projects_the_viewer_cannot_see(self):
+        self.as_user(self.bob)
+        team = self.client.get(f'/api/v1/organizations/{self.org.id}/teams/').data[0]
+        self.assertEqual([p['title'] for p in team['projects']], ['Del equipo'])

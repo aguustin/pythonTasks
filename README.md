@@ -173,7 +173,9 @@ tarea, aunque se reabra y se vuelva a terminar. Sin tareas programadas en el ser
 
 **Filtros** (`boards/{id}/tasks/` y `my-tasks/`): `assignee=<id>|me|none`, `priority=high,urgent`,
 `due=overdue|today|week|none`, `status=open|done|all`, `column=<id>`, `q=texto`.
-En `my-tasks/` además `organization=<id>`; por defecto `status=open`.
+En `my-tasks/` además `organization=<id>` y, dentro de ella, `team=<id>`; por defecto `status=open`.
+`organizations/{id}/home/` y `organizations/{id}/activity/` también aceptan `team=<id>`: solo cuentan los
+proyectos a los que ese equipo tiene acceso (los invitados reciben 403; un equipo de otra organización, 400).
 
 **Avisos (notificaciones):** te asignaron · comentaron en una tarea tuya o que seguís · te mencionaron · se terminó
 una tarea tuya o que seguís · vence mañana. Nunca se avisa a quien hizo la acción ni a quien no tiene acceso al
